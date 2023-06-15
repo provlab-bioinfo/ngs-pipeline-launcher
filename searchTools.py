@@ -1,4 +1,10 @@
-import pandas as pd, os, re, time, ahocorasick, pickle, numpy as np
+import pandas as pd, os, re, time, ahocorasick, pickle, numpy as np, glob
+
+def findFile(regex):
+    """Simple finder for a single file
+    :param regex: The regex for the file
+    """    
+    return(glob.glob(regex, recursive = True))
 
 def generateMLookupDB(dir: str, outDir: str, excludeDirs: list[str] = None):
     """ Generates a mlocate.db database for indexed searching
