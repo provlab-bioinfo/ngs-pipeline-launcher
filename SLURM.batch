@@ -1,0 +1,15 @@
+#!/bin/bash
+
+#SBATCH --job-name=[JOB_NAME]
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --time=3-00:00:00
+#SBATCH --mem=1G
+#SBATCH --output=[OUTPUT_DIR]
+
+# Note that only certain servers can access /nfs/WGS_ONT hence --nodelist parameter
+# ---------------------------------------------------------------------
+
+eval "$(conda shell.bash hook)"
+conda activate
