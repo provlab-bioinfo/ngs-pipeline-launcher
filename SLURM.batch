@@ -7,6 +7,7 @@
 #SBATCH --time=3-00:00:00
 #SBATCH --mem=1G
 #SBATCH --output=[OUTPUT_DIR]
+#SBATCH --error=[ERROR_DIR]
 
 # Note that only certain servers can access /nfs/WGS_ONT hence --nodelist parameter
 # ---------------------------------------------------------------------

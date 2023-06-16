@@ -4,6 +4,11 @@ pd.options.mode.chained_assignment = None  # default='warn'
 os.chdir(os.path.dirname(__file__))
 
 def getSampleSheetDataVars(path:str, section:str):
+    """Generates a dictionary from the first two columns of a [HEADER] section
+    :param path: The path to the reference file
+    :param section: The name of the section
+    :return: A dictionary containing variable keys
+    """    
     cfg = ConfigParser(allow_no_value=True)
     cfg.optionxform = str
     cfg.read(path)
@@ -12,6 +17,11 @@ def getSampleSheetDataVars(path:str, section:str):
     return (dict)
 
 def getSampleSheetDataFrame(path:str, section:str):
+    """Generates a DataFrame from a [HEADER] section
+    :param path: The path to the reference file
+    :param section: The name of the section
+    :return: A DataFrame representing the sections
+    """ 
     cfg = ConfigParser(allow_no_value=True)
     cfg.optionxform = str
     cfg.read(path)
@@ -20,13 +30,14 @@ def getSampleSheetDataFrame(path:str, section:str):
     buf.seek(0)
     return (pd.read_csv(buf))
 
-def readSampleSheet(path:str):
-    sampleSheet = pd.read_csv(path)
-    # sampleSheet['Sample_ID'] = sampleSheet['Sample_ID'].transform(lambda x: '"'+x+'"')
-    sampleSheet = sampleSheet.groupby(['Sample_Group'], as_index=False).agg({'Sample_ID': ','.join})
-    return(sampleSheet)
-
 def isRunCompleted(path:str, seqType: str):
+    """Checks whether a sequencing run is completed. 
+    For Illumina, checks for the 'CompletedJobInfo.xml' file. 
+    For Nanopore, checks for the 'final_summary_*.txt' file.
+    :param path: The path to the experiment directory
+    :param seqType: The type of sequencing. Either 'Illumina' or 'Nanopore'
+    :return: True if complete, False if not
+    """    
     file = ""
     if seqType == "Nanopore":
         file = "final_summary_*.txt"
@@ -35,11 +46,18 @@ def isRunCompleted(path:str, seqType: str):
     return False if not len(st.findFile(os.path.join(path,"**",file))) else True
 
 def generateSLURM(SLURM:str, jobName: str, outputDir: str, command: str):
+    """Generates a SLURM command file based on a template
+    :param SLURM: Path to the template SLURM file
+    :param jobName: The name of the job
+    :param outputDir: The directory for output/error files
+    :param command: The path to the new SLURM file
+    """    
     file = open(SLURM, "rt")
     data = file.read()
     file.close()
     data = data.replace("[JOB_NAME]", jobName)
     data = data.replace("[OUTPUT_DIR]", os.path.join(outputDir,"SLURM_out.txt"))
+    data = data.replace("[ERROR_DIR]", os.path.join(outputDir,"SLURM_error.txt"))
     outFile = os.path.join(outputDir,os.path.basename(SLURM))
     file = open(outFile, "wt+")
     file.write(data)
@@ -60,18 +78,18 @@ while not isRunCompleted(basePath, header["Seq_Type"]):
     print("waiting...")
     time.sleep(15*60)
 
-# # Split sequencing run into respective folders
-# for group in set(allSamples["Sample_Group"].values):
-#     if group == "Ignore": continue
-#     outDir = directories[group]
-#     print("Moving " + group + " to " + outDir)
-#     excludeSamples = allSamples.loc[allSamples['Sample_Group'] != group]["Sample_ID"].values.tolist()
-#     excludeSamples = ",".join(excludeSamples).split(",")
-#     excludeSamples = ["*"+sample+"*" for sample in excludeSamples]
-#     excludeSamples = excludeSamples + ["*fail*","*skip*","*unclassified*"]
-#     shutil.copytree(basePath, outDir, ignore=shutil.ignore_patterns(*excludeSamples))
+# Split sequencing run into respective folders
+for group in set(allSamples["Sample_Group"].values):
+    if group == "Ignore": continue
+    outDir = directories[group]
+    print("Moving " + group + " to " + outDir)
+    excludeSamples = allSamples.loc[allSamples['Sample_Group'] != group]["Sample_ID"].values.tolist()
+    excludeSamples = ",".join(excludeSamples).split(",")
+    excludeSamples = ["*"+sample+"*" for sample in excludeSamples]
+    excludeSamples = excludeSamples + ["*fail*","*skip*","*unclassified*"]
+    shutil.copytree(basePath, outDir, ignore=shutil.ignore_patterns(*excludeSamples))
 
-# Create SLURM commands
+# Setup pipeline
 for group in set(allSamples["Sample_Group"].values):
     if group == "Ignore": continue
     # Parse controls
