@@ -66,7 +66,7 @@ def generateSLURM(SLURM:str, jobName: str, outputDir: str, command: str):
     file.close()
     return(outFile)
 
-sampleSheetPath = "SampleSheet.csv"
+sampleSheetPath = "SampleSheet-230615_N_I_059.csv"
 allSamples = getSampleSheetDataFrame(sampleSheetPath, "Samples")
 directories = getSampleSheetDataVars(sampleSheetPath, "Directories")
 pipelines = getSampleSheetDataVars(sampleSheetPath, "Pipelines")
@@ -80,18 +80,22 @@ while not isRunCompleted(basePath, header["Seq_Type"]):
     time.sleep(15*60)
 
 # # Split sequencing run into respective folders
-# for group in set(allSamples["Sample_Group"].values):
+# groups = sorted(set(allSamples["Sample_Group"].values))
+# for group in groups:
 #     if group == "Ignore": continue
 #     outDir = directories[group]
 #     print("Moving " + group + " to " + outDir)
 #     excludeSamples = allSamples.loc[allSamples['Sample_Group'] != group]["Sample_ID"].values.tolist()
+#     includeSamples = set(allSamples["Sample_ID"].values) - set(excludeSamples)
+#     includeSamples = st.sortDigitSuffix(list(includeSamples))
+#     print("   Extracting samples: " + ", ".join(includeSamples))
 #     excludeSamples = ",".join(excludeSamples).split(",")
-#     excludeSamples = ["*"+sample+"*" for sample in excludeSamples]
+#     excludeSamples = ["*_"+sample+"_*" for sample in excludeSamples]
 #     excludeSamples = excludeSamples + ["*fail*","*skip*","*unclassified*"]
 #     shutil.copytree(basePath, outDir, ignore=shutil.ignore_patterns(*excludeSamples))
 
 # Setup pipeline
-for group in set(allSamples["Sample_Group"].values):
+for group in groups:
     if group == "Ignore": continue
     # Parse controls
     samples = allSamples.loc[allSamples['Sample_Group'] == group]
@@ -108,7 +112,6 @@ for group in set(allSamples["Sample_Group"].values):
         posCtrls = " ".join(posCtrls["Control"].values.tolist())
 
     # Create the SLURM command
-
     symlink = lambda dir,link: "ln -s {} {}".format(st.findFile(os.path.join(directories[group],"**",dir))[0],)
     symlink = lambda dir,link: "ln -s {} {}".format(st.findFile(os.path.join("./**",dir))[0],os.path.join(directories[group],link))
 
@@ -120,38 +123,25 @@ for group in set(allSamples["Sample_Group"].values):
         return "ln -s {} {}".format(file,link)
 
     commands = []
-    if (group == "ncov"):
+    if (group == "ncov" or group == "ncov-ww"):
         # Do symlinks
         if header["Seq_Type"] == "Nanopore":
             commands.append(symlink("fast5_pass","fast5"))   
             commands.append(symlink("fastq_pass","gup_out"))   
         elif header["Seq_Type"] == "Illumina":
-            commands.append(symlink("fastq","Fastq")) 
+            commands.append(symlink("Fastq","fastq")) 
 
         # Go to parent dir
         parentDir = os.path.dirname(directories[group].rstrip("/")) + "/"
         commands.append("\ncd {}\n".format(parentDir))
 
         # Run pipeline
-        command = "python {} -d {} -r {} -b 2".format(pipelines[group],parentDir,header["Run_Name"])
-        if len(posCtrls): command = command + " -p {}".format(posCtrls)
-        if len(negCtrls): command = command + " -c {}".format(negCtrls)
-        commands.append(command)
+        if (group == "ncov"):
+            command = "python {} -d {} -r {} -b 2".format(pipelines[group],parentDir,header["Run_Name"])
 
-    elif (group == "ncov-ww"):
-        # Do symlinks
-        if header["Seq_Type"] == "Nanopore":
-            commands.append(symlink("fast5_pass","fast5"))   
-            commands.append(symlink("fastq_pass","gup_out"))   
-        elif header["Seq_Type"] == "Illumina":
-            commands.append(symlink("fastq","Fastq")) 
+        if (group == "ncov-ww"):
+            command = "python {} -d {} -r {} -b 2 -f".format(pipelines[group],parentDir,header["Run_Name"])
 
-        # Go to parent dir
-        parentDir = os.path.dirname(directories[group].rstrip("/")) + "/"
-        commands.append("\ncd {}\n".format(parentDir))
-
-        # Run pipeline
-        command = "python {} -d {} -r {} -b 2 -f".format(pipelines[group],parentDir,header["Run_Name"])
         if len(posCtrls): command = command + " -p {}".format(posCtrls)
         if len(negCtrls): command = command + " -c {}".format(negCtrls)
         commands.append(command)
