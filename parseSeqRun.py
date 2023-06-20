@@ -13,7 +13,7 @@ def getSampleSheetDataVars(path:str, section:str):
     cfg.optionxform = str
     cfg.read(path)
     dict = {k:v for k, *v in map(lambda x: str.split(x,sep=","), cfg[section])}
-    dict = {k:v[0] for k, v in dict.items() if v} # Removes blank keys
+    dict = {k:v[0] for k, v in dict.items() if v} # Removes blank keys and keep only first column after var
     return (dict)
 
 def getSampleSheetDataFrame(path:str, section:str):
@@ -79,24 +79,25 @@ while not isRunCompleted(basePath, header["Seq_Type"]):
     print("waiting...")
     time.sleep(15*60)
 
-# # Split sequencing run into respective folders
-# groups = sorted(set(allSamples["Sample_Group"].values))
-# for group in groups:
-#     if group == "Ignore": continue
-#     outDir = directories[group]
-#     print("Moving " + group + " to " + outDir)
-#     excludeSamples = allSamples.loc[allSamples['Sample_Group'] != group]["Sample_ID"].values.tolist()
-#     includeSamples = set(allSamples["Sample_ID"].values) - set(excludeSamples)
-#     includeSamples = st.sortDigitSuffix(list(includeSamples))
-#     print("   Extracting samples: " + ", ".join(includeSamples))
-#     excludeSamples = ",".join(excludeSamples).split(",")
-#     excludeSamples = ["*_"+sample+"_*" for sample in excludeSamples]
-#     excludeSamples = excludeSamples + ["*fail*","*skip*","*unclassified*"]
-#     shutil.copytree(basePath, outDir, ignore=shutil.ignore_patterns(*excludeSamples))
+groups = sorted(set(allSamples["Sample_Group"].values))
+
+# Split sequencing run into respective folders
+for group in groups:
+    if group.lower() == "ignore": continue
+    outDir = directories[group]
+    print("Moving " + group + " to " + outDir)
+    excludeSamples = allSamples.loc[allSamples['Sample_Group'] != group]["Sample_ID"].values.tolist()
+    includeSamples = set(allSamples["Sample_ID"].values) - set(excludeSamples)
+    includeSamples = st.sortDigitSuffix(list(includeSamples))
+    print("   Extracting samples: " + ", ".join(includeSamples))
+    excludeSamples = ",".join(excludeSamples).split(",")
+    excludeSamples = ["*_"+sample+"_*" for sample in excludeSamples]
+    excludeSamples = excludeSamples + ["*fail*","*skip*","*unclassified*","*Undetermined*"]
+    shutil.copytree(basePath, outDir, ignore=shutil.ignore_patterns(*excludeSamples))
 
 # Setup pipeline
 for group in groups:
-    if group == "Ignore": continue
+    if group.lower() == "ignore": continue
     # Parse controls
     samples = allSamples.loc[allSamples['Sample_Group'] == group]
     ctrls = samples.dropna()
@@ -112,12 +113,16 @@ for group in groups:
         posCtrls = " ".join(posCtrls["Control"].values.tolist())
 
     # Create the SLURM command
-    symlink = lambda dir,link: "ln -s {} {}".format(st.findFile(os.path.join(directories[group],"**",dir))[0],)
     symlink = lambda dir,link: "ln -s {} {}".format(st.findFile(os.path.join("./**",dir))[0],os.path.join(directories[group],link))
 
     def symlink(dir,link): # Creates symlink command
-        file = st.findFile(os.path.join(directories[group],"**",dir))[0]
-        file = os.path.relpath(file,directories[group])
+        path = os.path.join(directories[group],"**",dir)
+        file = st.findFile(path)
+        if (len(file) < 1): 
+            raise Exception("No directory found for '{}'".format(path))
+        elif(len(file) > 1):
+            raise Exception("More than 1 directory found for '{}'".format(path))
+        file = os.path.relpath(file[0],directories[group])
         link = os.path.join(directories[group],link)
         link = os.path.relpath(link,directories[group])
         return "ln -s {} {}".format(file,link)
@@ -135,12 +140,14 @@ for group in groups:
         parentDir = os.path.dirname(directories[group].rstrip("/")) + "/"
         commands.append("\ncd {}\n".format(parentDir))
 
+        basecall = 2 if header["Base_Call"] == "Yes" else 1
+
         # Run pipeline
         if (group == "ncov"):
-            command = "python {} -d {} -r {} -b 2".format(pipelines[group],parentDir,header["Run_Name"])
+            command = "python {} -d {} -r {} -b {}".format(pipelines[group],parentDir,header["Run_Name"],basecall)
 
         if (group == "ncov-ww"):
-            command = "python {} -d {} -r {} -b 2 -f".format(pipelines[group],parentDir,header["Run_Name"])
+            command = "python {} -d {} -r {} -b {} -f".format(pipelines[group],parentDir,header["Run_Name"],basecall)
 
         if len(posCtrls): command = command + " -p {}".format(posCtrls)
         if len(negCtrls): command = command + " -c {}".format(negCtrls)
