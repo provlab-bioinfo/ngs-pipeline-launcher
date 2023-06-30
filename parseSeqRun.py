@@ -162,17 +162,19 @@ for group in groups:
 
         basecall = 2 if header["Base_Call"] == "Yes" else 1
 
+        baseDir = os.path.basename(directories[group].strip("/"))
+
         # Run pipeline
         if (group == "ncov"):
-            command = "python {} -d {} -r {} -b {}".format(pipelines[group],parentDir,header["Run_Name"],basecall)
+            command = "python {} -d {} -r {} -b {}".format(pipelines[group],parentDir,baseDir,basecall)
 
         if (group == "ncov-ww"):
-            command = "python {} -d {} -r {} -b {} -f".format(pipelines[group],parentDir,header["Run_Name"],basecall)
+            command = "python {} -d {} -r {} -b {} -f".format(pipelines[group],parentDir,baseDir,basecall)
 
         if len(posCtrls): command = command + " -p {}".format(posCtrls)
         if len(negCtrls): command = command + " -c {}".format(negCtrls)
         commands.append(command)
 
     # Generate the SLURM file
-    SLURMfile = generateSLURM(SLURM, header["Run_Name"]+"_"+group, directories[group], "\n".join(commands))
+    SLURMfile = generateSLURM(SLURM = SLURM, jobName = group+"_"+header["Run_Name"], outputDir = directories[group], command = "\n".join(commands))
     subprocess.run(["sbatch",SLURMfile,"-v"])

@@ -15,4 +15,4 @@
 eval "$(conda shell.bash hook)"
 conda activate jupyter
 
-python parseSeqRun.py -w /nfs/Genomics_DEV/projects/alindsay/Projects/seq-sample-split/PipelineWorksheet.csv
+python parseSeqRun.py -w /nfs/APL_Genomics/230629_N_I_061/PipelineWorksheet.csv
