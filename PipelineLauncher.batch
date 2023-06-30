@@ -1,0 +1,18 @@
+#!/bin/bash
+
+#SBATCH --job-name=PipelineLauncher
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --time=3-00:00:00
+#SBATCH --mem=1G
+#SBATCH --output=slurm-%j.out
+#SBATCH --error=slurm-%j.out
+
+# Note that only certain servers can access /nfs/WGS_ONT hence --nodelist parameter
+# ---------------------------------------------------------------------
+
+eval "$(conda shell.bash hook)"
+conda activate jupyter
+
+python parseSeqRun.py -w /nfs/Genomics_DEV/projects/alindsay/Projects/seq-sample-split/PipelineWorksheet.csv

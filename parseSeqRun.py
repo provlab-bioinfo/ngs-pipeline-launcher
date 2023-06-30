@@ -44,7 +44,16 @@ def isRunCompleted(path:str, seqType: str):
         file = "final_summary_*.txt"
     elif seqType == "Illumina":
         file = "CompletedJobInfo.xml"
-    return False if not len(st.findFile(os.path.join(path,"**",file))) else True
+
+    found = st.findFile(os.path.join(path,"**",file))
+
+    if (len(found)):
+        print(f"   Found {file} at {found}")
+        return True
+    else:
+        return False
+
+    # return False if not len(st.findFile(os.path.join(path,"**",file))) else True
 
 def generateSLURM(SLURM:str, jobName: str, outputDir: str, command: str):
     """Generates a SLURM command file based on a template
@@ -67,7 +76,11 @@ def generateSLURM(SLURM:str, jobName: str, outputDir: str, command: str):
     file.close()
     return(outFile)
 
-sampleSheetPath = "/nfs/Genomics_DEV/projects/alindsay/Projects/seq-sample-split/SampleSheet-230622_N_I_060.csv"
+parser = argparse.ArgumentParser(description='APL NGS Pipeline Launcher')
+parser.add_argument("-w", "--worksheet", help="Path to the pipeline worksheet.")#, default = "/nfs/Genomics_DEV/projects/alindsay/Projects/seq-sample-split/PipelineWorksheet.csv")
+args = parser.parse_args()
+sampleSheetPath = args.worksheet
+
 allSamples = getSampleSheetDataFrame(sampleSheetPath, "Samples")
 directories = getSampleSheetDataVars(sampleSheetPath, "Directories")
 pipelines = getSampleSheetDataVars(sampleSheetPath, "Pipelines")
@@ -75,12 +88,16 @@ header = getSampleSheetDataVars(sampleSheetPath, "Header")
 basePath = header["Run_Dir"]
 SLURM = "SLURM.batch"
 
+print("Checking for sequencing completion file...", flush=True)
+
 # Check if run is finished sequencing
 while not isRunCompleted(basePath, header["Seq_Type"]):
-    print("Waiting... ({})".format(datetime.now().strftime("%H:%M:%S")))
-    time.sleep(15*60)
+    print("Waiting... ({})".format(datetime.now().strftime("%H:%M:%S")), flush=True)
+    time.sleep(15)#*60)
 
 # time.sleep(15*60) # Extra wait to make sure everything is done
+
+print("Starting pipeline launcher...", flush=True)
 
 groups = sorted(set(allSamples["Sample_Group"].values))
 
@@ -88,11 +105,11 @@ groups = sorted(set(allSamples["Sample_Group"].values))
 for group in groups:
     if group.lower() == "ignore": continue
     outDir = directories[group]
-    print("Moving " + group + " to " + outDir)
+    print("Moving " + group + " to " + outDir, flush=True)
     excludeSamples = allSamples.loc[allSamples['Sample_Group'] != group]["Sample_ID"].values.tolist()
     includeSamples = set(allSamples["Sample_ID"].values) - set(excludeSamples)
     includeSamples = st.sortDigitSuffix(list(includeSamples))
-    print("   Extracting samples: " + ", ".join(includeSamples))
+    print("   Extracting samples: " + ", ".join(includeSamples), flush=True)
     excludeSamples = ",".join(excludeSamples).split(",")
     excludeSamples = ["*_"+sample+"_*" for sample in excludeSamples]
     excludeSamples = excludeSamples + ["*fail*","*skip*","*unclassified*","*Undetermined*"]
