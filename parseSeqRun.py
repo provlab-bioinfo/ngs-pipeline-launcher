@@ -4,6 +4,8 @@ from datetime import datetime
 pd.options.mode.chained_assignment = None  # default='warn'
 os.chdir(os.path.dirname(__file__))
 
+defaultSampleSheet = "/nfs/Genomics_DEV/projects/alindsay/Projects/seq-sample-split/PipelineWorksheet.csv"
+
 def getSampleSheetDataVars(path:str, section:str):
     """Generates a dictionary from the first two columns of a [HEADER] section
     :param path: The path to the reference file
@@ -39,6 +41,9 @@ def isRunCompleted(path:str, seqType: str):
     :param seqType: The type of sequencing. Either 'Illumina' or 'Nanopore'
     :return: True if complete, False if not
     """    
+    if not os.path.exists(path):
+        raise Exception("Run directory does not exist")
+
     file = ""
     if seqType == "Nanopore":
         file = "final_summary_*.txt"
@@ -77,7 +82,7 @@ def generateSLURM(SLURM:str, jobName: str, outputDir: str, command: str):
     return(outFile)
 
 parser = argparse.ArgumentParser(description='APL NGS Pipeline Launcher')
-parser.add_argument("-w", "--worksheet", help="Path to the pipeline worksheet.")#, default = "/nfs/Genomics_DEV/projects/alindsay/Projects/seq-sample-split/PipelineWorksheet.csv")
+parser.add_argument("-w", "--worksheet", help="Path to the pipeline worksheet.", default = defaultSampleSheet)
 args = parser.parse_args()
 sampleSheetPath = args.worksheet
 
@@ -102,22 +107,46 @@ print("Starting pipeline launcher...", flush=True)
 groups = sorted(set(allSamples["Sample_Group"].values))
 
 # Split sequencing run into respective folders
+print("Copying files...", flush=True)
 for group in groups:
     if group.lower() == "ignore": continue
+
+    # Check for directory
+    ignore = False
+    try: ignore = directories[group].lower() == "ignore"
+    except KeyError: ignore = True
+    if (ignore): print(f"   Ignoring file copy for {group}"); continue
+
+    # Move files    
     outDir = directories[group]
-    print("Moving " + group + " to " + outDir, flush=True)
+    print("   Moving " + group + " to " + outDir, flush=True)
     excludeSamples = allSamples.loc[allSamples['Sample_Group'] != group]["Sample_ID"].values.tolist()
     includeSamples = set(allSamples["Sample_ID"].values) - set(excludeSamples)
     includeSamples = st.sortDigitSuffix(list(includeSamples))
-    print("   Extracting samples: " + ", ".join(includeSamples), flush=True)
+    print("      Extracting samples: " + ", ".join(includeSamples), flush=True)
     excludeSamples = ",".join(excludeSamples).split(",")
     excludeSamples = ["*_"+sample+"_*" for sample in excludeSamples]
     excludeSamples = excludeSamples + ["*fail*","*skip*","*unclassified*","*Undetermined*"]
     shutil.copytree(basePath, outDir, ignore=shutil.ignore_patterns(*excludeSamples))
 
 # Setup pipeline
+print("Configuring pipelines...", flush=True)
 for group in groups:
     if group.lower() == "ignore": continue
+
+    # Check for pipeline
+    ignore = False
+    try: ignore = pipelines[group].lower() == "ignore"
+    except KeyError: ignore = True
+    if (ignore): print(f"   Ignoring pipeline for {group}"); continue
+
+    # Check output dir exists
+    if not os.path.exists(directories[group]):
+        print(f"   Output directory does not exist for {group}. Skipping.")
+        continue
+
+    print(f"   Generating SLURM for {group}...")
+
     # Parse controls
     samples = allSamples.loc[allSamples['Sample_Group'] == group]
     ctrls = samples.dropna()
