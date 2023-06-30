@@ -1,5 +1,6 @@
-import pandas as pd, os, searchTools as st, shutil, io, time, fileinput, subprocess
+import pandas as pd, os, searchTools as st, shutil, io, time, fileinput, subprocess, argparse
 from configparser import ConfigParser
+from datetime import datetime
 pd.options.mode.chained_assignment = None  # default='warn'
 os.chdir(os.path.dirname(__file__))
 
@@ -66,7 +67,7 @@ def generateSLURM(SLURM:str, jobName: str, outputDir: str, command: str):
     file.close()
     return(outFile)
 
-sampleSheetPath = "SampleSheet-230615_N_I_059.csv"
+sampleSheetPath = "/nfs/Genomics_DEV/projects/alindsay/Projects/seq-sample-split/SampleSheet-230622_N_I_060.csv"
 allSamples = getSampleSheetDataFrame(sampleSheetPath, "Samples")
 directories = getSampleSheetDataVars(sampleSheetPath, "Directories")
 pipelines = getSampleSheetDataVars(sampleSheetPath, "Pipelines")
@@ -76,8 +77,10 @@ SLURM = "SLURM.batch"
 
 # Check if run is finished sequencing
 while not isRunCompleted(basePath, header["Seq_Type"]):
-    print("waiting...")
+    print("Waiting... ({})".format(datetime.now().strftime("%H:%M:%S")))
     time.sleep(15*60)
+
+# time.sleep(15*60) # Extra wait to make sure everything is done
 
 groups = sorted(set(allSamples["Sample_Group"].values))
 
