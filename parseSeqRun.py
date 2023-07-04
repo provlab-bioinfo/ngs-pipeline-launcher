@@ -5,6 +5,7 @@ pd.options.mode.chained_assignment = None  # default='warn'
 os.chdir(os.path.dirname(__file__))
 
 defaultSampleSheet = "/nfs/Genomics_DEV/projects/alindsay/Projects/seq-sample-split/PipelineWorksheet.csv"
+validPipelines = ["ncov","ncov-ww","ignore"]
 
 def getSampleSheetDataVars(path:str, section:str):
     """Generates a dictionary from the first two columns of a [HEADER] section
@@ -45,9 +46,9 @@ def isRunCompleted(path:str, seqType: str):
         raise Exception("Run directory does not exist")
 
     file = ""
-    if seqType == "Nanopore":
+    if seqType.lower() == "nanopore":
         file = "final_summary_*.txt"
-    elif seqType == "Illumina":
+    elif seqType.lower() == "illumina":
         file = "CompletedJobInfo.xml"
 
     found = st.findFile(os.path.join(path,"**",file))
@@ -92,6 +93,27 @@ pipelines = getSampleSheetDataVars(sampleSheetPath, "Pipelines")
 header = getSampleSheetDataVars(sampleSheetPath, "Header")
 basePath = header["Run_Dir"]
 SLURM = "SLURM.batch"
+
+# Check for appropriate inputs
+if header["Seq_Type"].lower() not in ["nanopore","illumina"]:
+    raise Exception(f"Seq_Type must be either 'Nanopore' or 'Illumina' in the pipeline worksheet. Found: {header['Seq_Type']}")
+
+if header["Base_Call"].lower() not in ["yes","no"]:
+    raise Exception(f"Base_Call must be either 'Yes' or 'No' in the pipeline worksheet. Found: {header['Base_Call']}")
+
+groups = sorted(set(allSamples["Sample_Group"].values))
+for group in groups:
+    if group not in validPipelines:
+        raise Exception(f"Pipeline '{group}' is not a valid option")
+    
+    if not os.path.exists(pipelines[group]):
+        if (pipelines[group] != "ignore"):
+            raise Exception(f"Pipeline for '{group}' does not exist at '{pipelines[group]}'")
+
+    if os.path.exists(directories[group]):
+        if (directories[group] != "ignore"):
+            if (len(directories[group]) != 0):
+                raise Exception(f"Directory for '{group}' at '{directories[group]}' already exists and is not empty. Please choose empty or non-existing directory.")
 
 print("Checking for sequencing completion file...", flush=True)
 
@@ -168,9 +190,9 @@ for group in groups:
         path = os.path.join(directories[group],"**",dir)
         file = st.findFile(path)
         if (len(file) < 1): 
-            raise Exception("No directory found for '{}'".format(path))
+            raise Exception("Error: No directory found for '{}'".format(path))
         elif(len(file) > 1):
-            raise Exception("More than 1 directory found for '{}'".format(path))
+            raise Exception("Error: More than 1 directory found for '{}'".format(path))
         file = os.path.relpath(file[0],directories[group])
         link = os.path.join(directories[group],link)
         link = os.path.relpath(link,directories[group])
@@ -189,7 +211,7 @@ for group in groups:
         parentDir = os.path.dirname(directories[group].rstrip("/")) + "/"
         commands.append("\ncd {}\n".format(parentDir))
 
-        basecall = 2 if header["Base_Call"] == "Yes" else 1
+        basecall = 1 if header["Base_Call"].lower() == "yes" else 2
 
         baseDir = os.path.basename(directories[group].strip("/"))
 
