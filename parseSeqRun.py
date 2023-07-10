@@ -5,7 +5,10 @@ pd.options.mode.chained_assignment = None  # default='warn'
 os.chdir(os.path.dirname(__file__))
 
 defaultSampleSheet = "/nfs/Genomics_DEV/projects/alindsay/Projects/seq-sample-split/PipelineWorksheet.csv"
-validPipelines = ["ncov","ncov-ww","ignore"]
+validPipelines = ["ncov","ncov-ww"]
+
+barcodeCol = "Barcode"
+samplePosCol = "Sample_Pos"
 
 def getSampleSheetDataVars(path:str, section:str):
     """Generates a dictionary from the first two columns of a [HEADER] section
@@ -32,7 +35,9 @@ def getSampleSheetDataFrame(path:str, section:str):
     buf = io.StringIO()
     buf.writelines('\n'.join(row.rstrip(',') for row in cfg[section]))
     buf.seek(0)
-    return (pd.read_csv(buf))
+    df = pd.read_csv(buf)
+    df = df.dropna(subset = ["Sample_Group"])
+    return (df)
 
 def isRunCompleted(path:str, seqType: str):
     """Checks whether a sequencing run is completed. 
@@ -103,6 +108,10 @@ if header["Base_Call"].lower() not in ["yes","no"]:
 
 groups = sorted(set(allSamples["Sample_Group"].values))
 for group in groups:
+
+    if group == "ignore":
+        continue
+
     if group not in validPipelines:
         raise Exception(f"Pipeline '{group}' is not a valid option")
     
@@ -128,6 +137,14 @@ print("Starting pipeline launcher...", flush=True)
 
 groups = sorted(set(allSamples["Sample_Group"].values))
 
+# Add barcodes to the respective sequencing type
+
+allSamples[samplePosCol] = allSamples[barcodeCol]
+if (header["Seq_Type"].lower() == "nanopore"):
+    allSamples[barcodeCol] = allSamples[barcodeCol].apply(lambda x: f"barcode{x}")
+elif (header["Seq_Type"].lower() == "illumina"):
+    allSamples[barcodeCol] = allSamples[barcodeCol].apply(lambda x: f"S{x}")
+
 # Split sequencing run into respective folders
 print("Copying files...", flush=True)
 for group in groups:
@@ -142,8 +159,8 @@ for group in groups:
     # Move files    
     outDir = directories[group]
     print("   Moving " + group + " to " + outDir, flush=True)
-    excludeSamples = allSamples.loc[allSamples['Sample_Group'] != group]["Sample_ID"].values.tolist()
-    includeSamples = set(allSamples["Sample_ID"].values) - set(excludeSamples)
+    excludeSamples = allSamples.loc[allSamples['Sample_Group'] != group][barcodeCol].values.tolist()
+    includeSamples = set(allSamples[barcodeCol].values) - set(excludeSamples)
     includeSamples = st.sortDigitSuffix(list(includeSamples))
     print("      Extracting samples: " + ", ".join(includeSamples), flush=True)
     excludeSamples = ",".join(excludeSamples).split(",")
@@ -171,16 +188,16 @@ for group in groups:
 
     # Parse controls
     samples = allSamples.loc[allSamples['Sample_Group'] == group]
-    ctrls = samples.dropna()
+    ctrls = samples.dropna(subset=['Control'])
     samples = samples[samples['Control'].isna()]
 
     negCtrls = ctrls.loc[ctrls['Control'] == "negative"]
     if (len(negCtrls)):
-        negCtrls = ",".join(map(str,negCtrls["Sample_Pos"].values.tolist()))
+        negCtrls = ",".join(map(str,negCtrls[samplePosCol].values.tolist()))
 
     posCtrls = ctrls.loc[ctrls['Control'] != "negative"]
     if (len(posCtrls)):
-        posCtrls["Control"] = posCtrls["Sample_Pos"].astype(str) +","+ posCtrls["Control"].astype(str)
+        posCtrls["Control"] = posCtrls[samplePosCol].astype(str) +","+ posCtrls["Control"].astype(str)
         posCtrls = " ".join(posCtrls["Control"].values.tolist())
 
     # Create the SLURM command
