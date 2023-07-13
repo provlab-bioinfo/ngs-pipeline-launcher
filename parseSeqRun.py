@@ -1,10 +1,10 @@
-import pandas as pd, os, searchTools as st, shutil, io, time, fileinput, subprocess, argparse
+import pandas as pd, os, searchTools as st, shutil, io, time, fileinput, subprocess, argparse, tempfile
 from configparser import ConfigParser
 from datetime import datetime
 pd.options.mode.chained_assignment = None  # default='warn'
 os.chdir(os.path.dirname(__file__))
 
-defaultSampleSheet = "/nfs/Genomics_DEV/projects/alindsay/Projects/seq-sample-split/PipelineWorksheet.csv"
+defaultSampleSheet = "/nfs/Genomics_DEV/projects/alindsay/Projects/seq-sample-split/PipelineWorksheet.xlsx"
 validPipelines = ["ncov","ncov-ww"]
 
 barcodeCol = "Barcode"
@@ -36,7 +36,6 @@ def getSampleSheetDataFrame(path:str, section:str):
     buf.writelines('\n'.join(row.rstrip(',') for row in cfg[section]))
     buf.seek(0)
     df = pd.read_csv(buf)
-    df = df.dropna(subset = ["Sample_Group"])
     return (df)
 
 def isRunCompleted(path:str, seqType: str):
@@ -77,8 +76,8 @@ def generateSLURM(SLURM:str, jobName: str, outputDir: str, command: str):
     data = file.read()
     file.close()
     data = data.replace("[JOB_NAME]", jobName)
-    data = data.replace("[OUTPUT_DIR]", os.path.join(outputDir,"SLURM_out.txt"))
-    data = data.replace("[ERROR_DIR]", os.path.join(outputDir,"SLURM_error.txt"))
+    data = data.replace("[OUTPUT_DIR]", os.path.join(outputDir,"SLURM_out-%j.txt"))
+    data = data.replace("[ERROR_DIR]", os.path.join(outputDir,"SLURM_error-%j.txt"))
     data = data.replace("[RUN_DIR]", outputDir)
     outFile = os.path.join(outputDir,os.path.basename(SLURM))
     file = open(outFile, "wt+")
@@ -87,17 +86,24 @@ def generateSLURM(SLURM:str, jobName: str, outputDir: str, command: str):
     file.close()
     return(outFile)
 
+# Import the sample sheet
 parser = argparse.ArgumentParser(description='APL NGS Pipeline Launcher')
 parser.add_argument("-w", "--worksheet", help="Path to the pipeline worksheet.", default = defaultSampleSheet)
 args = parser.parse_args()
-sampleSheetPath = args.worksheet
+df = pd.read_excel(args.worksheet)
+with tempfile.NamedTemporaryFile() as sampleSheet:
+    df.to_csv(sampleSheet.name, index=False)#header=False, 
 
-allSamples = getSampleSheetDataFrame(sampleSheetPath, "Samples")
-directories = getSampleSheetDataVars(sampleSheetPath, "Directories")
-pipelines = getSampleSheetDataVars(sampleSheetPath, "Pipelines")
-header = getSampleSheetDataVars(sampleSheetPath, "Header")
+    print(sampleSheet.name)
+
+    allSamples = getSampleSheetDataFrame(sampleSheet.name, "Samples")
+    allSamples = allSamples.dropna(subset = ["Sample_Group"])
+    directories = getSampleSheetDataVars(sampleSheet.name, "Directories")
+    pipelines = getSampleSheetDataVars(sampleSheet.name, "Pipelines")
+    header = getSampleSheetDataVars(sampleSheet.name, "Header")
+
 basePath = header["Run_Dir"]
-SLURM = "SLURM.batch"
+SLURM = "SLURM_template.batch"
 
 # Check for appropriate inputs
 if header["Seq_Type"].lower() not in ["nanopore","illumina"]:
