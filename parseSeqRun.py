@@ -93,11 +93,8 @@ args = parser.parse_args()
 df = pd.read_excel(args.worksheet)
 with tempfile.NamedTemporaryFile() as sampleSheet:
     df.to_csv(sampleSheet.name, index=False)#header=False, 
-
-    print(sampleSheet.name)
-
     allSamples = getSampleSheetDataFrame(sampleSheet.name, "Samples")
-    allSamples = allSamples.dropna(subset = ["Sample_Group"])
+    # allSamples = allSamples.dropna(subset = ["Sample_Group"])
     directories = getSampleSheetDataVars(sampleSheet.name, "Directories")
     pipelines = getSampleSheetDataVars(sampleSheet.name, "Pipelines")
     header = getSampleSheetDataVars(sampleSheet.name, "Header")
@@ -112,7 +109,7 @@ if header["Seq_Type"].lower() not in ["nanopore","illumina"]:
 if header["Base_Call"].lower() not in ["yes","no"]:
     raise Exception(f"Base_Call must be either 'Yes' or 'No' in the pipeline worksheet. Found: {header['Base_Call']}")
 
-groups = sorted(set(allSamples["Sample_Group"].values))
+groups = sorted(set(allSamples["Sample_Group"].dropna().values))
 for group in groups:
 
     if group == "ignore":
@@ -141,13 +138,11 @@ while not isRunCompleted(basePath, header["Seq_Type"]):
 
 print("Starting pipeline launcher...", flush=True)
 
-groups = sorted(set(allSamples["Sample_Group"].values))
-
 # Add barcodes to the respective sequencing type
 
 allSamples[samplePosCol] = allSamples[barcodeCol]
 if (header["Seq_Type"].lower() == "nanopore"):
-    allSamples[barcodeCol] = allSamples[barcodeCol].apply(lambda x: f"barcode{x}")
+    allSamples[barcodeCol] = allSamples[barcodeCol].apply(lambda x: f"barcode{x}" if int(x) > 10 else f"barcode0{x}")
 elif (header["Seq_Type"].lower() == "illumina"):
     allSamples[barcodeCol] = allSamples[barcodeCol].apply(lambda x: f"S{x}")
 
