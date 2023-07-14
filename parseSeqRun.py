@@ -1,10 +1,10 @@
-import pandas as pd, os, searchTools as st, shutil, io, time, fileinput, subprocess, argparse, tempfile
+import pandas as pd, os, searchTools as st, shutil, io, time, fileinput, subprocess, argparse, tempfile, pathlib
 from configparser import ConfigParser
 from datetime import datetime
 pd.options.mode.chained_assignment = None  # default='warn'
 os.chdir(os.path.dirname(__file__))
 
-defaultSampleSheet = "/nfs/Genomics_DEV/projects/alindsay/Projects/seq-sample-split/PipelineWorksheet.xlsx"
+defaultSampleSheet = "/nfs/APL_Genomics/230713_N_I_064/230713_N_I_064_PipelineWorksheet.xlsx"
 validPipelines = ["ncov","ncov-ww"]
 
 barcodeCol = "Barcode"
@@ -90,14 +90,19 @@ def generateSLURM(SLURM:str, jobName: str, outputDir: str, command: str):
 parser = argparse.ArgumentParser(description='APL NGS Pipeline Launcher')
 parser.add_argument("-w", "--worksheet", help="Path to the pipeline worksheet.", default = defaultSampleSheet)
 args = parser.parse_args()
-df = pd.read_excel(args.worksheet)
+sampleSheetPath = args.worksheet
+
 with tempfile.NamedTemporaryFile() as sampleSheet:
-    df.to_csv(sampleSheet.name, index=False)#header=False, 
-    allSamples = getSampleSheetDataFrame(sampleSheet.name, "Samples")
-    # allSamples = allSamples.dropna(subset = ["Sample_Group"])
-    directories = getSampleSheetDataVars(sampleSheet.name, "Directories")
-    pipelines = getSampleSheetDataVars(sampleSheet.name, "Pipelines")
-    header = getSampleSheetDataVars(sampleSheet.name, "Header")
+    if pathlib.Path(args.worksheet).suffix == ".xlsx":
+        df = pd.read_excel(args.worksheet)
+        sampleSheetPath = sampleSheet.name
+        df.to_csv(sampleSheetPath, index=False)
+    else: sampleSheetPath = args.worksheet
+
+    allSamples = getSampleSheetDataFrame(sampleSheetPath, "Samples")
+    directories = getSampleSheetDataVars(sampleSheetPath, "Directories")
+    pipelines = getSampleSheetDataVars(sampleSheetPath, "Pipelines")
+    header = getSampleSheetDataVars(sampleSheetPath, "Header")
 
 basePath = header["Run_Dir"]
 SLURM = "SLURM_template.batch"
