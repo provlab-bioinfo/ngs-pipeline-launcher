@@ -1,4 +1,4 @@
-import pandas as pd, os, re, time, ahocorasick, pickle, numpy as np, glob
+import pandas as pd, os, re, time, ahocorasick, pickle, numpy as np, glob, random, itertools, copy
 
 def findFile(regex):
     """Simple finder for a single file
@@ -24,8 +24,8 @@ def mlocateFile(file, mLocateDB):
     except subprocess.CalledProcessError:
         return(None)   
 
-printFound = lambda nFiles, nFound, speed: print("   Parsed {} files and found {} files ({}s)                 ".format(nFiles,nFound,speed),end="\r")
-def generateFlatFileDB(dir: str, regex: str = None, fileExt: str = "", outFile: str = None, maxFiles:int = 100000000, excludeDirs: list[str] = [], verbose: bool = True):
+printFound = lambda nFiles, nFound, speed, end="\r": print("   Parsed {} files and found {} files ({}s)                 ".format(nFiles,nFound,speed),end=end)
+def generateFlatFileDB(dir: str, regex: str = None, fileExt: str = None, outFile: str = None, maxFiles:int = 100000000, excludeDirs: list[str] = [], verbose: bool = True):
     """Finds all files that fit a regex in a specified folder
     :param dir: Directory to search
     :param regex: The regex to search by
@@ -39,10 +39,13 @@ def generateFlatFileDB(dir: str, regex: str = None, fileExt: str = "", outFile: 
     lastCheck = startTime = time.time()
     excludeDirs = "|".join(excludeDirs)
 
+    if not os.path.exists(dir):
+        raise Exception("Directory '" + dir + "' does not exist. Cannot generate database.")
+
     if outFile is not None:
         out = open(outFile,'w')
 
-    if (verbose): print("Searching for files...")
+    if (verbose): print("Populating database...")
 
     for root, dirs, files in os.walk(dir, topdown=True):
         dirs.sort(reverse=True)
@@ -63,7 +66,7 @@ def generateFlatFileDB(dir: str, regex: str = None, fileExt: str = "", outFile: 
                 lastCheck = time.time()
             if (verbose): printFound(nFiles,nFound,speed)
 
-    if (verbose): printFound(nFiles,nFound,str(round(time.time() - startTime,2)))
+    if (verbose): printFound(nFiles,nFound,str(round(time.time() - startTime,2)),"\n")
     return (out if outFile is None else outFile)
 
 def searchFlatFileDB(db: str = None, outFile: str = None, searchTerms: list[str] = [], includeTerms: list[str] = [], excludeTerms: list[str] = [], caseSensitive = False, verbose = True):
@@ -75,7 +78,8 @@ def searchFlatFileDB(db: str = None, outFile: str = None, searchTerms: list[str]
     :param excludeTerms: Strings that paths must not include
     """
     if isinstance(db, str): db = set(open(db))
-    else: db=set(db)
+
+    db = {file.strip() for file in db}
 
     if (verbose): print("Searching for files...")
     nFound = nFiles = speed = 0
@@ -87,11 +91,12 @@ def searchFlatFileDB(db: str = None, outFile: str = None, searchTerms: list[str]
     if (len(excludeTerms)):
         if (verbose): print("Checking exclude terms...")
         excludeAutomaton = generateSearchAutomaton(excludeTerms, caseSensitive = caseSensitive)
-        out = db
+        out = copy.deepcopy(db)
         for file in set(out): 
-            if (next(excludeAutomaton.iter(file),False)): 
+            
+            if (next(excludeAutomaton.iter(file if caseSensitive else file.lower()),False)): 
                 db.discard(file)
-                # print("Discarded {}".format(file))
+                #print("Discarded {}".format(file))
 
     # print("Exclude: {}s".format(str(time.time()-timer)))
 
@@ -100,12 +105,13 @@ def searchFlatFileDB(db: str = None, outFile: str = None, searchTerms: list[str]
     # Keep by searchTerms
     if (len(searchTerms)):
         if (verbose): print("Checking search terms...")
-        searchAutomaton = generateSearchAutomaton(searchTerms, caseSensitive = caseSensitive)
+        automatons = [generateSearchAutomaton(term, caseSensitive = caseSensitive) for term in searchTerms]
         out = set()
         for file in set(db):
-            if (next(searchAutomaton.iter(file),False)): 
-                out.add(file)
-        db = out
+            for automaton in automatons:
+                if (next(automaton.iter(file if caseSensitive else file.lower()),False)): 
+                    out.add(file)
+        db = copy.deepcopy(out)
 
     # print("Search: {}s".format(str(time.time()-timer)))
 
@@ -117,9 +123,9 @@ def searchFlatFileDB(db: str = None, outFile: str = None, searchTerms: list[str]
         includeAutomaton = generateSearchAutomaton(includeTerms, caseSensitive = caseSensitive)
         out = set()
         for file in set(db):
-            if (next(includeAutomaton.iter(file),False)): 
+            if (next(includeAutomaton.iter(file if caseSensitive else file.lower()),False)): 
                 out.add(file)
-        db = out
+        db = copy.deepcopy(out)
 
     # print("Include: {}s".format(str(time.time()-timer)))
 
@@ -128,9 +134,7 @@ def searchFlatFileDB(db: str = None, outFile: str = None, searchTerms: list[str]
     if (outFile is not None):
         with open(outFile, 'w') as f:
             for line in db:
-                out.write(f"{line}\n")
-    else:
-        db = [i.strip() for i in db]
+                f.write(f"{line.strip()}\n")
 
     return (db if outFile is None else outFile)
 
@@ -396,7 +400,7 @@ def suctionBash(dir:list[str], excludeDirs: list[str]):
 
     os.system("bash -c '%s'" % script)
 
-def suction(dir:list[str], excludeDirs: list[str]):
+def suction(dir:list[str], excludeDirs: list[str] = []):
     """Moves all files within the specified directory to the root dir, then deletes all the folders
     :param dir: The directory to suction
     :param excludeDirs: A list of directories to ignore
@@ -407,7 +411,14 @@ def suction(dir:list[str], excludeDirs: list[str]):
         dirs[:] = [d for d in dirs if d not in excludeDirs]
         if (root == dir): continue
         for file in files:
-            shutil.move(os.path.join(root, file), dir)
+            filename = file
+            idx = 1
+            while (os.path.exists(os.path.join(dir, filename))):
+                print(f"Duplicate file found for {file}")
+                (name,ext) = os.path.splitext(file)
+                filename = name + f".{idx}" + ext
+            os.rename(os.path.join(root, file), os.path.join(root, filename))            
+            shutil.move(os.path.join(root, filename), dir)
 
     [shutil.rmtree(os.path.join(dir,d)) for d in next(os.walk(dir))[1]]
 
