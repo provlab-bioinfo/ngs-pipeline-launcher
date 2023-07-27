@@ -65,7 +65,7 @@ def isRunCompleted(path:str, seqType: str):
 
     # return False if not len(st.findFile(os.path.join(path,"**",file))) else True
 
-def generateSLURM(SLURM:str, jobName: str, outputDir: str, command: str):
+def generateSLURM(SLURM:str, jobName: str, outputDir: str, command: str, email: str = None):
     """Generates a SLURM command file based on a template
     :param SLURM: Path to the template SLURM file
     :param jobName: The name of the job
@@ -76,10 +76,12 @@ def generateSLURM(SLURM:str, jobName: str, outputDir: str, command: str):
     data = file.read()
     file.close()
     data = data.replace("[JOB_NAME]", jobName)
-    data = data.replace("[OUTPUT_DIR]", os.path.join(outputDir,"SLURM_out-%j.txt"))
-    data = data.replace("[ERROR_DIR]", os.path.join(outputDir,"SLURM_error-%j.txt"))
+    data = data.replace("[OUTPUT_DIR]", os.path.join(outputDir,jobName+"_out.txt"))
+    data = data.replace("[ERROR_DIR]", os.path.join(outputDir,jobName+"_error.txt"))
+    data = data.replace("[EMAIL]", email)
+    data = data.replace("[MAIL_TYPE]", "NONE" if email is None else "ALL")      
     data = data.replace("[RUN_DIR]", outputDir)
-    outFile = os.path.join(outputDir,os.path.basename(SLURM))
+    outFile = os.path.join(outputDir,jobName+"_SLURM.batch")
     file = open(outFile, "wt+")
     file.write(data)
     file.write("\n\n"+command)
@@ -89,8 +91,10 @@ def generateSLURM(SLURM:str, jobName: str, outputDir: str, command: str):
 # Import the sample sheet
 parser = argparse.ArgumentParser(description='APL NGS Pipeline Launcher')
 parser.add_argument("-w", "--worksheet", help="Path to the pipeline worksheet.", default = defaultSampleSheet)
+parser.add_argument("-e", "--email", help="Notify status alerts by e-mail.", default = None)
 args = parser.parse_args()
 sampleSheetPath = args.worksheet
+email = args.email
 
 with tempfile.NamedTemporaryFile() as sampleSheet:
     if pathlib.Path(args.worksheet).suffix == ".xlsx":
@@ -253,5 +257,5 @@ for group in groups:
         commands.append(command)
 
     # Generate the SLURM file
-    SLURMfile = generateSLURM(SLURM = SLURM, jobName = group+"_"+header["Run_Name"], outputDir = directories[group], command = "\n".join(commands))
+    SLURMfile = generateSLURM(SLURM = SLURM, jobName = group+"_"+header["Run_Name"], outputDir = directories[group], command = "\n".join(commands), email = email)
     subprocess.run(["sbatch",SLURMfile,"-v"])
