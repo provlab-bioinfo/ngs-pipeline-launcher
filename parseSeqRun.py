@@ -4,7 +4,7 @@ from datetime import datetime
 pd.options.mode.chained_assignment = None  # default='warn'
 os.chdir(os.path.dirname(__file__))
 
-defaultSampleSheet = "/nfs/APL_Genomics/230713_N_I_064/230713_N_I_064_PipelineWorksheet.xlsx"
+defaultSampleSheet = "/nfs/Genomics_DEV/projects/alindsay/Projects/seq-sample-split/PipelineWorksheet.xlsx"
 validPipelines = ["ncov","ncov-ww"]
 
 barcodeCol = "Barcode"
@@ -146,10 +146,15 @@ print("Starting pipeline launcher...", flush=True)
 # Add barcodes to the respective sequencing type
 
 allSamples[samplePosCol] = allSamples[barcodeCol]
+allBarcodes = range(1,96)
 if (header["Seq_Type"].lower() == "nanopore"):
-    allSamples[barcodeCol] = allSamples[barcodeCol].apply(lambda x: f"barcode{x}" if int(x) > 10 else f"barcode0{x}")
+    label = lambda x: f"_barcode{x}" if int(x) > 10 else f"_barcode0{x}"
+    allSamples[barcodeCol] = allSamples[barcodeCol].apply(label)
+    allBarcodes = [label(x) for x in allBarcodes]
 elif (header["Seq_Type"].lower() == "illumina"):
-    allSamples[barcodeCol] = allSamples[barcodeCol].apply(lambda x: f"S{x}")
+    label = lambda x: f"_S{x}_"
+    allSamples[barcodeCol] = allSamples[barcodeCol].apply(label)
+    allBarcodes = [label(x) for x in allBarcodes]
 
 # Split sequencing run into respective folders
 print("Copying files...", flush=True)
@@ -165,13 +170,11 @@ for group in groups:
     # Move files    
     outDir = directories[group]
     print("   Moving " + group + " to " + outDir, flush=True)
-    excludeSamples = allSamples.loc[allSamples['Sample_Group'] != group][barcodeCol].values.tolist()
-    includeSamples = set(allSamples[barcodeCol].values) - set(excludeSamples)
+    includeSamples = allSamples.loc[allSamples['Sample_Group'] == group][barcodeCol].values.tolist()
     includeSamples = st.sortDigitSuffix(list(includeSamples))
-    print("      Extracting samples: " + ", ".join(includeSamples), flush=True)
-    excludeSamples = ",".join(excludeSamples).split(",")
-    excludeSamples = ["*_"+sample+"_*" for sample in excludeSamples]
-    excludeSamples = excludeSamples + ["*fail*","*skip*","*unclassified*","*Undetermined*"]
+    print("      Extracting samples: " + ", ".join([x.strip("_") for x in includeSamples]), flush=True)
+    excludeSamples = list(set(allBarcodes) - set(includeSamples)) + ["fail","skip","unclassified","Undetermined"]
+    excludeSamples = [f"*{sample}*" for sample in excludeSamples]
     shutil.copytree(basePath, outDir, ignore=shutil.ignore_patterns(*excludeSamples))
 
 # Setup pipeline
