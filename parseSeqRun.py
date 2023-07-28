@@ -65,7 +65,7 @@ def isRunCompleted(path:str, seqType: str):
 
     # return False if not len(st.findFile(os.path.join(path,"**",file))) else True
 
-def generateSLURM(SLURM:str, jobName: str, outputDir: str, command: str, email: str = None):
+def generateSLURM(SLURM:str, jobName: str, runName: str, outputDir: str, command: str, email: str = None):
     """Generates a SLURM command file based on a template
     :param SLURM: Path to the template SLURM file
     :param jobName: The name of the job
@@ -76,17 +76,19 @@ def generateSLURM(SLURM:str, jobName: str, outputDir: str, command: str, email: 
     data = file.read()
     file.close()
     data = data.replace("[JOB_NAME]", jobName)
-    data = data.replace("[OUTPUT_DIR]", os.path.join(outputDir,jobName+"_out.txt"))
-    data = data.replace("[ERROR_DIR]", os.path.join(outputDir,jobName+"_error.txt"))
+    data = data.replace("[OUTPUT_DIR]", os.path.join(outputDir,runName+"_out.txt"))
+    data = data.replace("[ERROR_DIR]", os.path.join(outputDir,runName+"_error.txt"))
     data = data.replace("[EMAIL]", email)
     data = data.replace("[MAIL_TYPE]", "NONE" if email is None else "ALL")      
     data = data.replace("[RUN_DIR]", outputDir)
-    outFile = os.path.join(outputDir,jobName+"_SLURM.batch")
+    outFile = os.path.join(outputDir,runName+"_SLURM.batch")
     file = open(outFile, "wt+")
     file.write(data)
     file.write("\n\n"+command)
     file.close()
     return(outFile)
+
+print(f"Pipeline launcher started at: {datetime.now().strftime('%H:%M:%S')}")
 
 # Import the sample sheet
 parser = argparse.ArgumentParser(description='APL NGS Pipeline Launcher')
@@ -179,7 +181,7 @@ for group in groups:
     print("      Extracting samples: " + ", ".join([x.strip("_") for x in includeSamples]), flush=True)
     excludeSamples = list(set(allBarcodes) - set(includeSamples)) + ["fail","skip","unclassified","Undetermined"]
     excludeSamples = [f"*{sample}*" for sample in excludeSamples]
-    shutil.copytree(basePath, outDir, ignore=shutil.ignore_patterns(*excludeSamples))
+    shutil.copytree(basePath, outDir, ignore=shutil.ignore_patterns(*excludeSamples), dirs_exist_ok=True)
 
 # Setup pipeline
 print("Configuring pipelines...", flush=True)
@@ -257,5 +259,5 @@ for group in groups:
         commands.append(command)
 
     # Generate the SLURM file
-    SLURMfile = generateSLURM(SLURM = SLURM, jobName = group+"_"+header["Run_Name"], outputDir = directories[group], command = "\n".join(commands), email = email)
+    SLURMfile = generateSLURM(SLURM = SLURM, jobName = group+"_"+header["Run_Name"], runName = header["Run_Name"], outputDir = directories[group], command = "\n".join(commands), email = email)
     subprocess.run(["sbatch",SLURMfile,"-v"])
