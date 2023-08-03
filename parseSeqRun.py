@@ -5,10 +5,11 @@ pd.options.mode.chained_assignment = None  # default='warn'
 os.chdir(os.path.dirname(__file__))
 
 defaultSampleSheet = "/nfs/Genomics_DEV/projects/alindsay/Projects/seq-sample-split/PipelineWorksheet.xlsx"
-validPipelines = ["ncov","ncov-ww"]
 
 barcodeCol = "Barcode"
 samplePosCol = "Sample_Pos"
+
+lambda ct: f"{datetime.now().strftime('%H:%M:%S')} | "
 
 def getSampleSheetDataVars(path:str, section:str):
     """Generates a dictionary from the first two columns of a [HEADER] section
@@ -78,7 +79,7 @@ def generateSLURM(SLURM:str, jobName: str, runName: str, outputDir: str, command
     data = data.replace("[JOB_NAME]", jobName)
     data = data.replace("[OUTPUT_DIR]", os.path.join(outputDir,runName+"_out.txt"))
     data = data.replace("[ERROR_DIR]", os.path.join(outputDir,runName+"_error.txt"))
-    data = data.replace("[EMAIL]", email)
+    data = data.replace("[EMAIL]",  "NONE" if email is None else email)
     data = data.replace("[MAIL_TYPE]", "NONE" if email is None else "ALL")      
     data = data.replace("[RUN_DIR]", outputDir)
     outFile = os.path.join(outputDir,runName+"_SLURM.batch")
@@ -90,7 +91,7 @@ def generateSLURM(SLURM:str, jobName: str, runName: str, outputDir: str, command
 
 print(f"Pipeline launcher started at: {datetime.now().strftime('%H:%M:%S')}")
 
-# Import the sample sheet
+# Import the arguments
 parser = argparse.ArgumentParser(description='APL NGS Pipeline Launcher')
 parser.add_argument("-w", "--worksheet", help="Path to the pipeline worksheet.", default = defaultSampleSheet)
 parser.add_argument("-e", "--email", help="Notify status alerts by e-mail.", default = None)
@@ -98,6 +99,7 @@ args = parser.parse_args()
 sampleSheetPath = args.worksheet
 email = args.email
 
+# Read data from the sample sheet
 with tempfile.NamedTemporaryFile() as sampleSheet:
     if pathlib.Path(args.worksheet).suffix == ".xlsx":
         df = pd.read_excel(args.worksheet)
@@ -105,10 +107,11 @@ with tempfile.NamedTemporaryFile() as sampleSheet:
         df.to_csv(sampleSheetPath, index=False)
     else: sampleSheetPath = args.worksheet
 
-    allSamples = getSampleSheetDataFrame(sampleSheetPath, "Samples")
-    directories = getSampleSheetDataVars(sampleSheetPath, "Directories")
+    header = getSampleSheetDataVars(sampleSheetPath, "Header") 
     pipelines = getSampleSheetDataVars(sampleSheetPath, "Pipelines")
-    header = getSampleSheetDataVars(sampleSheetPath, "Header")
+    directories = getSampleSheetDataVars(sampleSheetPath, "Directories")   
+    directories = {group: os.path.join(dir,header["Run_Name"]) for group, dir in directories.items()}
+    allSamples = getSampleSheetDataFrame(sampleSheetPath, "Samples")
 
 basePath = header["Run_Dir"]
 SLURM = "SLURM_template.batch"
@@ -125,9 +128,6 @@ for group in groups:
 
     if group == "ignore":
         continue
-
-    if group not in validPipelines:
-        raise Exception(f"Pipeline '{group}' is not a valid option")
     
     if not os.path.exists(pipelines[group]):
         if (pipelines[group] != "ignore"):
@@ -165,17 +165,18 @@ elif (header["Seq_Type"].lower() == "illumina"):
 # Split sequencing run into respective folders
 print("Copying files...", flush=True)
 for group in groups:
+    outDir = directories[group]
+
     if group.lower() == "ignore": continue
 
     # Check for directory
     ignore = False
-    try: ignore = directories[group].lower() == "ignore"
+    try: ignore = outDir.lower() == "ignore"
     except KeyError: ignore = True
     if (ignore): print(f"   Ignoring file copy for {group}"); continue
 
-    # Move files    
-    outDir = directories[group]
-    print("   Moving " + group + " to " + outDir, flush=True)
+    # Move files
+    print(f"   Moving {group} to {outDir}", flush=True)
     includeSamples = allSamples.loc[allSamples['Sample_Group'] == group][barcodeCol].values.tolist()
     includeSamples = st.sortDigitSuffix(list(includeSamples))
     print("      Extracting samples: " + ", ".join([x.strip("_") for x in includeSamples]), flush=True)
@@ -206,29 +207,29 @@ for group in groups:
     ctrls = samples.dropna(subset=['Control'])
     samples = samples[samples['Control'].isna()]
 
-    negCtrls = ctrls.loc[ctrls['Control'] == "negative"]
+    negCtrls = ctrls.loc[ctrls['Control'].str.lower() == "negative"]
     if (len(negCtrls)):
         negCtrls = ",".join(map(str,negCtrls[samplePosCol].values.tolist()))
 
-    posCtrls = ctrls.loc[ctrls['Control'] != "negative"]
+    posCtrls = ctrls.loc[ctrls['Control'].str.lower() != "negative"]
     if (len(posCtrls)):
         posCtrls["Control"] = posCtrls[samplePosCol].astype(str) +","+ posCtrls["Control"].astype(str)
         posCtrls = " ".join(posCtrls["Control"].values.tolist())
 
     # Create the SLURM command
-    symlink = lambda dir,link: "ln -s {} {}".format(st.findFile(os.path.join("./**",dir))[0],os.path.join(directories[group],link))
+    symlink = lambda dir,link: f"ln -s {st.findFile(os.path.join('./**',dir))[0]} {os.path.join(directories[group],link)}"
 
     def symlink(dir,link): # Creates symlink command
         path = os.path.join(directories[group],"**",dir)
         file = st.findFile(path)
         if (len(file) < 1): 
-            raise Exception("Error: No directory found for '{}'".format(path))
+            raise Exception(f"Error: No directory found for '{path}'")
         elif(len(file) > 1):
-            raise Exception("Error: More than 1 directory found for '{}'".format(path))
+            raise Exception(f"Error: More than 1 directory found for '{path}'")
         file = os.path.relpath(file[0],directories[group])
         link = os.path.join(directories[group],link)
         link = os.path.relpath(link,directories[group])
-        return "ln -s {} {}".format(file,link)
+        return f"ln -s {file} {link}"
 
     commands = []
     if (group == "ncov" or group == "ncov-ww"):
@@ -248,16 +249,18 @@ for group in groups:
         baseDir = os.path.basename(directories[group].strip("/"))
 
         # Run pipeline
-        if (group == "ncov"):
-            command = "python {} -d {} -r {} -b {}".format(pipelines[group],parentDir,baseDir,basecall)
-
-        if (group == "ncov-ww"):
-            command = "python {} -d {} -r {} -b {} -f".format(pipelines[group],parentDir,baseDir,basecall)
+        command = f"python {pipelines[group]} -d {parentDir} -r {baseDir} -b {basecall}"
+        if (group == "ncov-ww"): command = command + " -f"
 
         if len(posCtrls): command = command + " -p {}".format(posCtrls)
         if len(negCtrls): command = command + " -c {}".format(negCtrls)
         commands.append(command)
 
     # Generate the SLURM file
-    SLURMfile = generateSLURM(SLURM = SLURM, jobName = group+"_"+header["Run_Name"], runName = header["Run_Name"], outputDir = directories[group], command = "\n".join(commands), email = email)
+    SLURMfile = generateSLURM(SLURM = SLURM, 
+                              jobName = group+"_"+header["Run_Name"], 
+                              runName = header["Run_Name"], 
+                              outputDir = directories[group], 
+                              command = "\n".join(commands), 
+                              email = email)
     subprocess.run(["sbatch",SLURMfile,"-v"])
