@@ -158,7 +158,7 @@ if (header["Seq_Type"].lower() == "nanopore"):
     allSamples[barcodeCol] = allSamples[barcodeCol].apply(label)
     allBarcodes = [label(x) for x in allBarcodes]
 elif (header["Seq_Type"].lower() == "illumina"):
-    label = lambda x: f"_S{x}_"
+    label = lambda x: f"_{x}_S"
     allSamples[barcodeCol] = allSamples[barcodeCol].apply(label)
     allBarcodes = [label(x) for x in allBarcodes]
 
@@ -182,7 +182,7 @@ for group in groups:
     print("      Extracting samples: " + ", ".join([x.strip("_") for x in includeSamples]), flush=True)
     excludeSamples = list(set(allBarcodes) - set(includeSamples)) + ["fail","skip","unclassified","Undetermined"]
     excludeSamples = [f"*{sample}*" for sample in excludeSamples]
-    shutil.copytree(basePath, outDir, ignore=shutil.ignore_patterns(*excludeSamples), dirs_exist_ok=True)
+    shutil.copytree(basePath, outDir, ignore=shutil.ignore_patterns(*excludeSamples), dirs_exist_ok=False) # TODO: dirs_exist_ok should be enable-able
 
 # Setup pipeline
 print("Configuring pipelines...", flush=True)
@@ -264,3 +264,6 @@ for group in groups:
                               command = "\n".join(commands), 
                               email = email)
     subprocess.run(["sbatch",SLURMfile,"-v"])
+
+print("All files transferred and pipeline initialized...", flush=True)
+print("", flush=True)
