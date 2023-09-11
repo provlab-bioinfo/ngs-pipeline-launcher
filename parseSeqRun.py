@@ -180,7 +180,7 @@ for group in groups:
     includeSamples = allSamples.loc[allSamples['Sample_Group'] == group][barcodeCol].values.tolist()
     includeSamples = st.sortDigitSuffix(list(includeSamples))
     print("      Extracting samples: " + ", ".join([x.strip("_") for x in includeSamples]), flush=True)
-    excludeSamples = list(set(allBarcodes) - set(includeSamples)) + ["fail","skip","unclassified","Undetermined"]
+    excludeSamples = list(set(allBarcodes) - set(includeSamples)) + ["fail","skip","unclassified","Undetermined","~$"]
     excludeSamples = [f"*{sample}*" for sample in excludeSamples]
     shutil.copytree(basePath, outDir, ignore=shutil.ignore_patterns(*excludeSamples), dirs_exist_ok=False) # TODO: dirs_exist_ok should be enable-able
 
