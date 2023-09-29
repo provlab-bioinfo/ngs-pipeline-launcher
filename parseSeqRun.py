@@ -150,7 +150,6 @@ while not isRunCompleted(basePath, header["Seq_Type"]):
 print("Starting pipeline launcher...", flush=True)
 
 # Add barcodes to the respective sequencing type
-
 allSamples[samplePosCol] = allSamples[barcodeCol]
 allBarcodes = range(1,96)
 if (header["Seq_Type"].lower() == "nanopore"):
@@ -207,14 +206,18 @@ for group in groups:
     ctrls = samples.dropna(subset=['Control'])
     samples = samples[samples['Control'].isna()]
 
-    negCtrls = ctrls.loc[ctrls['Control'].str.lower() == "negative"]
-    if (len(negCtrls)):
-        negCtrls = ",".join(map(str,negCtrls[samplePosCol].values.tolist()))
+    negCtrls = ctrls['Control'].str.lower() == "negative"
+    if (any(negCtrls)):
+        negCtrls = ctrls.loc[negCtrls]
+        if (len(negCtrls)):
+            negCtrls = ",".join(map(str,negCtrls[samplePosCol].values.tolist()))
 
-    posCtrls = ctrls.loc[ctrls['Control'].str.lower() != "negative"]
-    if (len(posCtrls)):
-        posCtrls["Control"] = posCtrls[samplePosCol].astype(str) +","+ posCtrls["Control"].astype(str)
-        posCtrls = " ".join(posCtrls["Control"].values.tolist())
+    posCtrls = ctrls['Control'].str.lower() != "negative"
+    if (any(posCtrls)):
+        posCtrls = ctrls.loc[posCtrls]
+        if (len(posCtrls)):
+            posCtrls["Control"] = posCtrls[samplePosCol].astype(str) +","+ posCtrls["Control"].astype(str)
+            posCtrls = " ".join(posCtrls["Control"].values.tolist())
 
     # Create the SLURM command
     symlink = lambda dir,link: f"ln -s {st.findFile(os.path.join('./**',dir))[0]} {os.path.join(directories[group],link)}"
