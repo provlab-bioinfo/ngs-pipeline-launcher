@@ -151,24 +151,20 @@ print("Starting pipeline launcher...", flush=True)
 
 # Add barcodes to the respective sequencing type
 allSamples[samplePosCol] = allSamples[barcodeCol]
-allBarcodes = range(1,96)
 if (header["Seq_Type"].lower() == "nanopore"):
     label = lambda x: f"_barcode{x}" if int(x) > 10 else f"_barcode0{x}"
     allSamples[barcodeCol] = allSamples[barcodeCol].apply(label)
-    allBarcodes = [label(x) for x in allBarcodes]
 elif (header["Seq_Type"].lower() == "illumina"):
-    label = lambda x: f"_{x}_S"
+    label = lambda x: f"{x}_S"
     allSamples[barcodeCol] = allSamples[barcodeCol].apply(label)
-    allBarcodes = [label(x) for x in allBarcodes]
 
 # Split sequencing run into respective folders
 print("Copying files...", flush=True)
 for group in groups:
-    outDir = directories[group]
-
     if group.lower() == "ignore": continue
 
     # Check for directory
+    outDir = directories[group]
     ignore = False
     try: ignore = outDir.lower() == "ignore"
     except KeyError: ignore = True
@@ -179,8 +175,12 @@ for group in groups:
     includeSamples = allSamples.loc[allSamples['Sample_Group'] == group][barcodeCol].values.tolist()
     includeSamples = st.sortDigitSuffix(list(includeSamples))
     print("      Extracting samples: " + ", ".join([x.strip("_") for x in includeSamples]), flush=True)
-    excludeSamples = list(set(allBarcodes) - set(includeSamples)) + ["fail","skip","unclassified","Undetermined","~$"]
-    excludeSamples = [f"*{sample}*" for sample in excludeSamples]
+    excludeSamples = list(set(allSamples[barcodeCol].tolist()) - set(includeSamples))
+    print("      Excluding samples: " + ", ".join([x.strip("_") for x in excludeSamples]), flush=True)
+    excludeSamples = [f"{sample}*" for sample in excludeSamples]
+    excludeSamples = st.sortDigitSuffix(list(excludeSamples))
+    excludeSamples = excludeSamples + ["*fail*","*skip*","*unclassified*","*Undetermined*","*~$*"]
+
     shutil.copytree(basePath, outDir, ignore=shutil.ignore_patterns(*excludeSamples), dirs_exist_ok=False) # TODO: dirs_exist_ok should be enable-able
 
 # Setup pipeline
