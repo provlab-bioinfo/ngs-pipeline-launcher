@@ -434,3 +434,14 @@ def sortDigitSuffix(data):
     convert = lambda text: int(text) if text.isdigit() else text.lower()
     alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ] 
     return sorted(data, key=alphanum_key)
+
+def collapseNumbers(numbers: list[str]):
+    """Collapses a list of numbered strings into a list
+    :param numbers: List of strings with some iterating number
+    :return: A string list of the collapsed ranges
+    """    
+    numbers = pd.Series(numbers)
+    s = numbers.apply(lambda x: int(re.findall(r'\d+', x)[0])).sort_values()
+    v = s.diff().bfill().ne(1).cumsum() 
+    ranges = (s.astype(str).groupby(v).apply(lambda x: '-'.join(x.values[[0, -1]]) if len(x) > 1 else x.item()).tolist())
+    return ranges

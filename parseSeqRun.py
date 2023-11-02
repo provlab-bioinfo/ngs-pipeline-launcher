@@ -9,7 +9,7 @@ defaultSampleSheet = "/nfs/Genomics_DEV/projects/alindsay/Projects/seq-sample-sp
 barcodeCol = "Barcode"
 samplePosCol = "Sample_Pos"
 
-lambda ct: f"{datetime.now().strftime('%H:%M:%S')} | "
+ct = lambda: f"{datetime.now().strftime('%H:%M:%S')}"
 
 def getSampleSheetDataVars(path:str, section:str):
     """Generates a dictionary from the first two columns of a [HEADER] section
@@ -89,7 +89,7 @@ def generateSLURM(SLURM:str, jobName: str, runName: str, outputDir: str, command
     file.close()
     return(outFile)
 
-print(f"Pipeline launcher started at: {datetime.now().strftime('%H:%M:%S')}")
+print(f"Pipeline launcher started at: {ct()}\n")
 
 # Import the arguments
 parser = argparse.ArgumentParser(description='APL NGS Pipeline Launcher')
@@ -142,12 +142,10 @@ print("Checking for sequencing completion file...", flush=True)
 
 # Check if run is finished sequencing
 while not isRunCompleted(basePath, header["Seq_Type"]):
-    print("Waiting... ({})".format(datetime.now().strftime("%H:%M:%S")), flush=True)
+    print(f"   Waiting... ({ct()})", flush=True)
     time.sleep(15)#*60)
 
 # time.sleep(15*60) # Extra wait to make sure everything is done
-
-print("Starting pipeline launcher...", flush=True)
 
 # Add barcodes to the respective sequencing type
 allSamples[samplePosCol] = allSamples[barcodeCol]
@@ -159,7 +157,7 @@ elif (header["Seq_Type"].lower() == "illumina"):
     allSamples[barcodeCol] = allSamples[barcodeCol].apply(label)
 
 # Split sequencing run into respective folders
-print("Copying files...", flush=True)
+print("\nCopying files...", flush=True)
 for group in groups:
     if group.lower() == "ignore": continue
 
@@ -174,9 +172,9 @@ for group in groups:
     print(f"   Moving {group} to {outDir}", flush=True)
     includeSamples = allSamples.loc[allSamples['Sample_Group'] == group][barcodeCol].values.tolist()
     includeSamples = st.sortDigitSuffix(list(includeSamples))
-    print("      Extracting samples: " + ", ".join([x.strip("_") for x in includeSamples]), flush=True)
+    print("      Extracting barcodes: " + ", ".join(st.collapseNumbers(includeSamples)), flush=True)
     excludeSamples = list(set(allSamples[barcodeCol].tolist()) - set(includeSamples))
-    print("      Excluding samples: " + ", ".join([x.strip("_") for x in excludeSamples]), flush=True)
+    # print("      Excluding samples: " + ", ".join([x.strip("_") for x in excludeSamples]), flush=True)
     excludeSamples = [f"{sample}*" for sample in excludeSamples]
     excludeSamples = st.sortDigitSuffix(list(excludeSamples))
     excludeSamples = excludeSamples + ["*fail*","*skip*","*unclassified*","*Undetermined*","*~$*"]
@@ -184,7 +182,7 @@ for group in groups:
     shutil.copytree(basePath, outDir, ignore=shutil.ignore_patterns(*excludeSamples), dirs_exist_ok=False) # TODO: dirs_exist_ok should be enable-able
 
 # Setup pipeline
-print("Configuring pipelines...", flush=True)
+print("\nConfiguring pipelines...", flush=True)
 for group in groups:
     if group.lower() == "ignore": continue
 
@@ -199,7 +197,7 @@ for group in groups:
         print(f"   Output directory does not exist for {group}. Skipping.")
         continue
 
-    print(f"   Generating SLURM for {group}...")
+    print(f"   Generating SLURM for {group}...", flush=True)
 
     # Parse controls
     samples = allSamples.loc[allSamples['Sample_Group'] == group]
@@ -266,7 +264,7 @@ for group in groups:
                               outputDir = directories[group], 
                               command = "\n".join(commands), 
                               email = email)
-    subprocess.run(["sbatch",SLURMfile,"-v"])
+    out = subprocess.run(["sbatch",SLURMfile,"-v"], capture_output = True, text = True)
+    print(f"      {out.stdout}", flush=True)
 
-print("All files transferred and pipeline initialized...", flush=True)
-print("", flush=True)
+print(f"All files transferred and pipeline initialized at: {ct()}\n", flush=True)
