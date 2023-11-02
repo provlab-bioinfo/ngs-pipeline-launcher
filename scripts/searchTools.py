@@ -439,7 +439,7 @@ def collapseNumbers(numbers: list[str]):
     """Collapses a list of numbered strings into a list
     :param numbers: List of strings with some iterating number
     :return: A string list of the collapsed ranges
-    """    
+    """
     numbers = pd.Series(numbers)
     s = numbers.apply(lambda x: int(re.findall(r'\d+', x)[0])).sort_values()
     v = s.diff().bfill().ne(1).cumsum() 

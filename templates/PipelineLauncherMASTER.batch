@@ -10,11 +10,9 @@
 #SBATCH --mail-type=ALL
 #SBATCH --output=%x_out.txt
 #SBATCH --error=%x_error.txt
+#SBATCH --partition=vm-cpu
 
 eval "$(conda shell.bash hook)"
 conda activate jupyter
 
-#python parseSeqRun.py -w /nfs/APL_Genomics/230713_N_I_064/230713_N_I_064_PipelineWorksheet.xlsx
-#python parseSeqRun.py -w /nfs/APL_Genomics/230720_N_I_065/230720_N_I_065_PipelineWorksheet.xlsx
-
-python parseSeqRun.py -w /nfs/Genomics_DEV/projects/alindsay/Projects/seq-sample-split/PipelineWorksheet.xlsx -e Andrew.Lindsay@albertaprecisionlabs.ca
+python /nfs/APL_Genomics/apps/development/pipeline_launcher/parseSeqRun.py -w /nfs/APL_Genomics/230731_N_I_repeat_highoutput/230731_N_I_repeat_highoutput_PipelineWorksheet.xlsx -e Andrew.Lindsay@albertaprecisionlabs.ca

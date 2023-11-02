@@ -4,8 +4,8 @@ from datetime import datetime
 pd.options.mode.chained_assignment = None  # default='warn'
 os.chdir(os.path.dirname(__file__))
 
-defaultSampleSheet = "/nfs/Genomics_DEV/projects/alindsay/Projects/seq-sample-split/PipelineWorksheet.xlsx"
-
+defaultSampleSheet = "./PipelineWorksheet.xlsx"
+SLURM = "../templates/SLURM_template.batch"
 barcodeCol = "Barcode"
 samplePosCol = "Sample_Pos"
 
@@ -114,7 +114,6 @@ with tempfile.NamedTemporaryFile() as sampleSheet:
     allSamples = getSampleSheetDataFrame(sampleSheetPath, "Samples")
 
 basePath = header["Run_Dir"]
-SLURM = "SLURM_template.batch"
 
 # Check for appropriate inputs
 if header["Seq_Type"].lower() not in ["nanopore","illumina"]:

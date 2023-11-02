@@ -42,7 +42,7 @@ while not isRunCompleted(path, type):
     print(f"{datetime.now().strftime('%H:%M:%S')} | Waiting...", flush=True)
     time.sleep(15)#*60)
 
-shutil.copytree(path, dest, dirs_exist_ok=True)
+shutil.copytree(path, dest)
 
 print(f"{datetime.now().strftime('%H:%M:%S')} | Transfer Completed", flush=True)
 
