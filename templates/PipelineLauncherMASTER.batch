@@ -13,6 +13,6 @@
 #SBATCH --partition=vm-cpu
 
 eval "$(conda shell.bash hook)"
-conda activate jupyter
+conda activate ngs-pipeline-launcher
 
-python /nfs/APL_Genomics/apps/development/pipeline_launcher/parseSeqRun.py -w /nfs/APL_Genomics/230731_N_I_repeat_highoutput/230731_N_I_repeat_highoutput_PipelineWorksheet.xlsx -e Andrew.Lindsay@albertaprecisionlabs.ca
+python /nfs/APL_Genomics/apps/development/pipeline_launcher/scripts/pipelineLauncher.py -w /nfs/APL_Genomics/230731_N_I_repeat_highoutput/230731_N_I_repeat_highoutput_PipelineWorksheet.xlsx -e Andrew.Lindsay@albertaprecisionlabs.ca

@@ -1,0 +1,10 @@
+name: ngs-pipeline-launcher
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.10
+  - numpy=1.24.2
+  - pandas=2.0.0
+  - pyahocorasick=2.0.0
