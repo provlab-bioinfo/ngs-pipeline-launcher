@@ -173,11 +173,10 @@ for group in groups:
     includeSamples = st.sortDigitSuffix(list(includeSamples))
     print("      Extracting barcodes: " + ", ".join(st.collapseNumbers(includeSamples)), flush=True)
     excludeSamples = list(set(allSamples[barcodeCol].tolist()) - set(includeSamples))
-    # print("      Excluding samples: " + ", ".join([x.strip("_") for x in excludeSamples]), flush=True)
-    excludeSamples = [f"{sample}*" for sample in excludeSamples]
     excludeSamples = st.sortDigitSuffix(list(excludeSamples))
+    print("      Excluding barcodes: " + ", ".join(st.collapseNumbers(excludeSamples)), flush=True)
+    excludeSamples = [f"*[!0-9]{sample}*" for sample in excludeSamples]
     excludeSamples = excludeSamples + ["*fail*","*skip*","*unclassified*","*Undetermined*","*~$*"]
-
     shutil.copytree(basePath, outDir, ignore=shutil.ignore_patterns(*excludeSamples), dirs_exist_ok=False) # TODO: dirs_exist_ok should be enable-able
 
 # Setup pipeline
