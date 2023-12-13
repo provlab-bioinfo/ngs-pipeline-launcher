@@ -1,4 +1,4 @@
-import pandas as pd, os, searchTools as st, shutil, io, time, fileinput, subprocess, argparse, tempfile, pathlib
+import pandas as pd, os, searchTools as st, shutil, io, time, fileinput, subprocess, argparse, tempfile, pathlib, glob, re
 from configparser import ConfigParser
 from datetime import datetime
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -175,10 +175,16 @@ for group in groups:
     excludeSamples = list(set(allSamples[barcodeCol].tolist()) - set(includeSamples))
     excludeSamples = st.sortDigitSuffix(list(excludeSamples))
     print("      Excluding barcodes: " + ", ".join(st.collapseNumbers(excludeSamples)), flush=True)
-    excludeSamples = [f"*[!0-9]{sample}*" for sample in excludeSamples]
-    excludeSamples = excludeSamples + ["*fail*","*skip*","*unclassified*","*Undetermined*","*~$*"]
-    shutil.copytree(basePath, outDir, ignore=shutil.ignore_patterns(*excludeSamples), dirs_exist_ok=False) # TODO: dirs_exist_ok should be enable-able
+    excludeSamples = [f"\/{sample}|\/.*_{sample}" for sample in excludeSamples]
+    excludeSamples = excludeSamples + ["fail","skip","unclassified","Undetermined","~$"]
+    excludeSamples = "|".join(excludeSamples)
 
+    for p in glob.glob('**', recursive=True, root_dir=basePath):
+        print(f"{p}: {re.search(excludeSamples, p)}", flush=True)
+        if os.path.isfile(os.path.join(basePath, p)) and not re.search(excludeSamples, p):            
+            os.makedirs(os.path.join(outDir, os.path.dirname(p)), exist_ok=True)
+            shutil.copy(os.path.join(basePath, p), os.path.join(outDir, p))
+    
 # Setup pipeline
 print("\nConfiguring pipelines...", flush=True)
 for group in groups:
