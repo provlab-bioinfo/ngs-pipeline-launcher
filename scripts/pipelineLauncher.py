@@ -9,7 +9,7 @@ SLURM = "../templates/SLURM_template.batch"
 barcodeCol = "Barcode"
 samplePosCol = "Sample_Pos"
 
-ct = lambda: f"{datetime.now().strftime('%H:%M:%S')}"
+currentTime = lambda: f"{datetime.now().strftime('%H:%M:%S')}"
 
 def getSampleSheetDataVars(path:str, section:str):
     """Generates a dictionary from the first two columns of a [HEADER] section
@@ -89,7 +89,7 @@ def generateSLURM(SLURM:str, jobName: str, runName: str, outputDir: str, command
     file.close()
     return(outFile)
 
-print(f"Pipeline launcher started at: {ct()}\n")
+print(f"Pipeline launcher started at: {currentTime()}\n")
 
 # Import the arguments
 parser = argparse.ArgumentParser(description='APL NGS Pipeline Launcher')
@@ -141,19 +141,22 @@ print("Checking for sequencing completion file...", flush=True)
 
 # Check if run is finished sequencing
 while not isRunCompleted(basePath, header["Seq_Type"]):
-    print(f"   Waiting... ({ct()})", flush=True)
+    print(f"   Waiting... ({currentTime()})", flush=True)
     time.sleep(15)#*60)
 
 # time.sleep(15*60) # Extra wait to make sure everything is done
 
 # Add barcodes to the respective sequencing type
 allSamples[samplePosCol] = allSamples[barcodeCol]
+allBarcodes = range(1,1000)
+
 if (header["Seq_Type"].lower() == "nanopore"):
     label = lambda x: f"_barcode{x}" if int(x) > 10 else f"_barcode0{x}"
-    allSamples[barcodeCol] = allSamples[barcodeCol].apply(label)
 elif (header["Seq_Type"].lower() == "illumina"):
     label = lambda x: f"{x}_S"
-    allSamples[barcodeCol] = allSamples[barcodeCol].apply(label)
+    
+allSamples[barcodeCol] = allSamples[barcodeCol].apply(label)
+allBarcodes = [label(barcode) for barcode in allBarcodes]
 
 # Split sequencing run into respective folders
 print("\nCopying files...", flush=True)
@@ -172,7 +175,7 @@ for group in groups:
     includeSamples = allSamples.loc[allSamples['Sample_Group'] == group][barcodeCol].values.tolist()
     includeSamples = st.sortDigitSuffix(list(includeSamples))
     print("      Extracting barcodes: " + ", ".join(st.collapseNumbers(includeSamples)), flush=True)
-    excludeSamples = list(set(allSamples[barcodeCol].tolist()) - set(includeSamples))
+    excludeSamples = list(set(allBarcodes) - set(includeSamples))
     excludeSamples = st.sortDigitSuffix(list(excludeSamples))
     # print("      Excluding barcodes: " + ", ".join(st.collapseNumbers(excludeSamples)), flush=True)
     excludeSamples = [f"\/{sample}|\/.*_{sample}" for sample in excludeSamples]
@@ -270,4 +273,4 @@ for group in groups:
     out = subprocess.run(["sbatch",SLURMfile,"-v"], capture_output = True, text = True)
     print(f"      {out.stdout}", flush=True)
 
-print(f"All files transferred and pipeline initialized at: {ct()}\n", flush=True)
+print(f"All files transferred and pipeline initialized at: {currentTime()}\n", flush=True)
