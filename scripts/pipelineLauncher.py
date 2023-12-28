@@ -1,10 +1,10 @@
-import pandas as pd, os, searchTools as st, shutil, io, time, fileinput, subprocess, argparse, tempfile, pathlib, glob, re, glob, re
+import pandas as pd, os, search_tools as st, shutil, io, time, fileinput, subprocess, argparse, tempfile, pathlib, glob, re, glob, re
 from configparser import ConfigParser
 from datetime import datetime
 pd.options.mode.chained_assignment = None  # default='warn'
 os.chdir(os.path.dirname(__file__))
 
-defaultSampleSheet = "./PipelineWorksheet.xlsx"
+defaultSampleSheet = "./"
 SLURM = "../templates/SLURM_template.batch"
 barcodeCol = "Barcode"
 samplePosCol = "Sample_Pos"
@@ -93,19 +93,25 @@ print(f"Pipeline launcher started at: {currentTime()}\n")
 
 # Import the arguments
 parser = argparse.ArgumentParser(description='APL NGS Pipeline Launcher')
-parser.add_argument("-w", "--worksheet", help="Path to the pipeline worksheet.", default = defaultSampleSheet)
+parser.add_argument("-r", "--run", help="Path to the run directory. Must contain the PipelineWorksheet.xlsx.", default = defaultSampleSheet)
 parser.add_argument("-e", "--email", help="Notify status alerts by e-mail.", default = None)
 args = parser.parse_args()
-sampleSheetPath = args.worksheet
-email = args.email
+sampleSheetPath = args.run
+print(args.email)
+email = None if args.email == "None" else args.email
 
 # Read data from the sample sheet
 with tempfile.NamedTemporaryFile() as sampleSheet:
-    if pathlib.Path(args.worksheet).suffix == ".xlsx":
-        df = pd.read_excel(args.worksheet)
+    file = st.findFile(os.path.join(args.run,"**","*PipelineWorksheet*"))
+    file = [ f for f in file if "~$" not in f ]
+    if (len(file) != 1):
+        raise Exception(f"More than one PipelineWorksheet identified. Found:\n{file}")
+    file = file[0]
+    if pathlib.Path(file).suffix == ".xlsx":
+        df = pd.read_excel(file)
         sampleSheetPath = sampleSheet.name
         df.to_csv(sampleSheetPath, index=False)
-    else: sampleSheetPath = args.worksheet
+    else: sampleSheetPath = file
 
     header = getSampleSheetDataVars(sampleSheetPath, "Header") 
     pipelines = getSampleSheetDataVars(sampleSheetPath, "Pipelines")
