@@ -13,6 +13,7 @@ sbatch <<EOT
 #SBATCH --time=3-00:00:00
 #SBATCH --mem=1G
 #SBATCH --mail-type=ALL
+#SBATCH --mail-user=$EMAIL
 #SBATCH --output=$RUN"%x_out.txt"
 #SBATCH --error=$RUN"%x_error.txt"
 #SBATCH --partition=vm-cpu
