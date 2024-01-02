@@ -1,4 +1,4 @@
-import pandas as pd, os, search_tools as st, shutil, io, time, fileinput, subprocess, argparse, tempfile, pathlib, glob, re, glob, re
+import pandas as pd, os, search_tools as st, shutil, io, time, subprocess, argparse, tempfile, pathlib, glob, re, glob, re
 from configparser import ConfigParser
 from datetime import datetime
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -63,8 +63,6 @@ def isRunCompleted(path:str, seqType: str):
         return True
     else:
         return False
-
-    # return False if not len(st.findFile(os.path.join(path,"**",file))) else True
 
 def generateSLURM(SLURM:str, jobName: str, runName: str, outputDir: str, command: str, email: str = None):
     """Generates a SLURM command file based on a template

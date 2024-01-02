@@ -19,7 +19,7 @@ When ```PipelineWorksheet.xlsx``` is filled in, launch with:
 
 ```bash
 conda activate ngs-pipeline-launcher
-run_pipeline_launcher [/path/to/run/] [E-mail]
+run_pipeline_launcher </path/to/run/> [E-mail]
 ```
 
 ## Dependencies
