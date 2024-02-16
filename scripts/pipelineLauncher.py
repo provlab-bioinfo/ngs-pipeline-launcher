@@ -48,7 +48,8 @@ def isRunCompleted(path:str, seqType: str):
     :return: True if complete, False if not
     """    
     if not os.path.exists(path):
-        raise Exception("Run directory does not exist")
+        return False
+        # raise Exception("Run directory does not exist")
 
     file = ""
     if seqType.lower() == "nanopore":
@@ -141,7 +142,7 @@ for group in groups:
             if (len(directories[group]) != 0):
                 raise Exception(f"Directory for '{group}' at '{directories[group]}' already exists and is not empty. Please choose empty or non-existing directory.")
 
-print("Checking for sequencing completion file...", flush=True)
+print(f"Checking for sequencing completion file in '{basePath}'...", flush=True)
 
 # Check if run is finished sequencing
 while not isRunCompleted(basePath, header["Seq_Type"]):
