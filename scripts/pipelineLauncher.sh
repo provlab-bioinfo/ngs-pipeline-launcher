@@ -3,6 +3,10 @@ eval "$(conda shell.bash hook)"
 conda activate ngs-pipeline-launcher
 RUN=$1
 EMAIL=${2-None}
+TEMP="${RUN%/}"
+TEMP="${TEMP##*/}"
+TEMP="/nfs/APL_Genomics/scratch/$TEMP"
+mkdir $RUN -p
 sbatch <<EOT
 #!/bin/bash
 
@@ -18,7 +22,8 @@ sbatch <<EOT
 #SBATCH --error=$RUN"%x_error.txt"
 #SBATCH --partition=vm-cpu
 
-cd /nfs/APL_Genomics/
+# mkdir $TEMP
+# cd $TEMP || exit -1 
 python /nfs/APL_Genomics/apps/production/ngs-pipeline-launcher/scripts/pipelineLauncher.py -r $RUN -e $EMAIL
 
 exit 0

@@ -1,4 +1,4 @@
-import pandas as pd, os, search_tools as st, shutil, io, time, subprocess, argparse, tempfile, pathlib, glob, re, glob, re
+import pandas as pd, os, search_tools as st, shutil, io, time, subprocess, argparse, tempfile, pathlib, glob, re, glob, re, itertools
 from configparser import ConfigParser
 from datetime import datetime
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -39,28 +39,28 @@ def getSampleSheetDataFrame(path:str, section:str):
     df = pd.read_csv(buf)
     return (df)
 
-def isRunCompleted(path:str, seqType: str):
+def isRunCompleted(path:str, seqType: str = None):
     """Checks whether a sequencing run is completed. 
     For Illumina, checks for the 'CompletedJobInfo.xml' file. 
     For Nanopore, checks for the 'final_summary_*.txt' file.
     :param path: The path to the experiment directory
     :param seqType: The type of sequencing. Either 'Illumina' or 'Nanopore'
     :return: True if complete, False if not
-    """    
+    """
     if not os.path.exists(path):
-        return False
-        # raise Exception("Run directory does not exist")
+        raise Exception("Run directory does not exist")
 
-    file = ""
-    if seqType.lower() == "nanopore":
-        file = "final_summary_*.txt"
-    elif seqType.lower() == "illumina":
-        file = "CompletedJobInfo.xml"
+    file = ["final_summary_*.txt","CompletedJobInfo.xml"]
+    if (seqType):
+        if seqType.lower() == "nanopore":
+            file = file[0]
+        elif seqType.lower() == "illumina":
+            file = file[1]
 
-    found = st.findFile(os.path.join(path,"**",file))
+    found = [glob.glob(os.path.join(path,"**",f), recursive = True) for f in file]
+    found = list(itertools.chain.from_iterable(found))
 
     if (len(found)):
-        print(f"   Found {file} at {found}")
         return True
     else:
         return False
@@ -98,6 +98,11 @@ args = parser.parse_args()
 sampleSheetPath = args.run
 print(args.email)
 email = None if args.email == "None" else args.email
+
+# Check if run is finished sequencing
+while not isRunCompleted(args.run):
+    print(f"   Waiting... ({currentTime()})", flush=True)
+    time.sleep(15)#*60)
 
 # Read data from the sample sheet
 with tempfile.NamedTemporaryFile() as sampleSheet:
