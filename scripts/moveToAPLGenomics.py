@@ -12,13 +12,13 @@ def isRunCompleted(path:str, seqType: str):
     if not os.path.exists(path):
         raise Exception("Run directory does not exist")
 
-    file = ""
+    file = ["final_summary_*.txt","CompletedJobInfo.xml"]
     if seqType.lower() == "nanopore":
-        file = "final_summary_*.txt"
+        file = file[0]
     elif seqType.lower() == "illumina":
-        file = "CompletedJobInfo.xml"
+        file = file[1]
 
-    found = glob.glob(os.path.join(path,"**",file), recursive = True)
+    found = [glob.glob(os.path.join(path,"**",f), recursive = True) for f in file]
 
     if (len(found)):
         print(f"{datetime.now().strftime('%H:%M:%S')} | Found {file} at {found}. Starting move...")
@@ -29,7 +29,7 @@ def isRunCompleted(path:str, seqType: str):
 parser = argparse.ArgumentParser(description='APL NGS File mover')
 parser.add_argument("-p", "--path", help="Path to the sequencing output folder")
 parser.add_argument("-d", "--destination", help="Path to the experiment directory on APL Genomics")
-parser.add_argument("-t", "--type", help="'Illumina' or 'Nanopore'")
+parser.add_argument("-t", "--type", help="'Illumina' or 'Nanopore'", required=False)
 args = parser.parse_args()
 path = args.path
 dest = args.destination

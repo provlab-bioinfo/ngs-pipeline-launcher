@@ -18,6 +18,7 @@ sbatch <<EOT
 #SBATCH --error=$RUN"%x_error.txt"
 #SBATCH --partition=vm-cpu
 
+cd /nfs/APL_Genomics/
 python /nfs/APL_Genomics/apps/production/ngs-pipeline-launcher/scripts/pipelineLauncher.py -r $RUN -e $EMAIL
 
 exit 0
