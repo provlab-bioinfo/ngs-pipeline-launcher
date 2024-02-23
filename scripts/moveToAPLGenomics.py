@@ -1,5 +1,7 @@
 import os, shutil, time, argparse, glob
 from datetime import datetime
+from itertools import chain
+from shutil import copytree, ignore_patterns
 
 def isRunCompleted(path:str, seqType: str):
     """Checks whether a sequencing run is completed. 
@@ -13,18 +15,19 @@ def isRunCompleted(path:str, seqType: str):
         raise Exception("Run directory does not exist")
 
     file = ["final_summary_*.txt","CompletedJobInfo.xml"]
-    if seqType.lower() == "nanopore":
-        file = file[0]
-    elif seqType.lower() == "illumina":
-        file = file[1]
+    if (seqType):
+        if seqType.lower() == "nanopore":
+            file = file[0]
+        elif seqType.lower() == "illumina":
+            file = file[1]
 
     found = [glob.glob(os.path.join(path,"**",f), recursive = True) for f in file]
+    found = list(chain.from_iterable(found))
 
     if (len(found)):
-        print(f"{datetime.now().strftime('%H:%M:%S')} | Found {file} at {found}. Starting move...")
-        return True
+        return True, found
     else:
-        return False
+        return False, found
 
 parser = argparse.ArgumentParser(description='APL NGS File mover')
 parser.add_argument("-p", "--path", help="Path to the sequencing output folder")
@@ -38,11 +41,21 @@ type = args.type
 print(f"{datetime.now().strftime('%H:%M:%S')} | Automated file transfer tool started", flush=True)
 
 # Check if run is finished sequencing
-while not isRunCompleted(path, type):
-    print(f"{datetime.now().strftime('%H:%M:%S')} | Waiting...", flush=True)
-    time.sleep(15)#*60)
+completionFiles = []
+while not len(completionFiles):
+    isComplete, completionFiles = isRunCompleted(path, type)
+    if not isComplete:
+        print(f"{datetime.now().strftime('%H:%M:%S')} | Waiting...", flush=True)
+        time.sleep(1)#*60)
+        continue
+    print(f"{datetime.now().strftime('%H:%M:%S')} | Found {completionFiles}. Starting move...")
 
-shutil.copytree(path, dest)
+# Copy all but completion files
+shutil.copytree(path, dest, ignore=ignore_patterns('*final_summary_*.txt', '*CompletedJobInfo.xml'), dirs_exist_ok=True)
+
+# Copy completion files
+for file in completionFiles:
+    if os.path.isfile(file):
+        shutil.copy2(file, file.replace(path,dest))
 
 print(f"{datetime.now().strftime('%H:%M:%S')} | Transfer Completed", flush=True)
-
