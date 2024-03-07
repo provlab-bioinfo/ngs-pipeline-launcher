@@ -1,6 +1,5 @@
-import os, shutil, time, argparse, glob
+import os, shutil, time, argparse, glob, itertools
 from datetime import datetime
-from itertools import chain
 from shutil import copytree, ignore_patterns
 
 def isRunCompleted(path:str, seqType: str):
@@ -12,17 +11,18 @@ def isRunCompleted(path:str, seqType: str):
     :return: True if complete, False if not
     """
     if not os.path.exists(path):
-        raise Exception("Run directory does not exist")
+        return False
+        #raise Exception("Run directory does not exist")
 
     file = ["final_summary_*.txt","CompletedJobInfo.xml"]
     if (seqType):
         if seqType.lower() == "nanopore":
-            file = file[0]
+            file = [file[0]]
         elif seqType.lower() == "illumina":
-            file = file[1]
+            file = [file[1]]
 
     found = [glob.glob(os.path.join(path,"**",f), recursive = True) for f in file]
-    found = list(chain.from_iterable(found))
+    found = list(itertools.chain.from_iterable(found))
 
     if (len(found)):
         return True, found
@@ -46,7 +46,7 @@ while not len(completionFiles):
     isComplete, completionFiles = isRunCompleted(path, type)
     if not isComplete:
         print(f"{datetime.now().strftime('%H:%M:%S')} | Waiting...", flush=True)
-        time.sleep(1)#*60)
+        time.sleep(15)#*60)
         continue
     print(f"{datetime.now().strftime('%H:%M:%S')} | Found {completionFiles}. Starting move...")
 
