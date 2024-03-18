@@ -23,6 +23,7 @@ sbatch << EOT
 
 # mkdir $TEMP
 # cd $TEMP || exit -1 
+cd /nfs/APL_Genomics/scratch/
 python /nfs/APL_Genomics/apps/production/ngs-pipeline-launcher/scripts/pipelineLauncher.py -r $RUN -e $EMAIL
 
 quit

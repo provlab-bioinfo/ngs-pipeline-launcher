@@ -69,6 +69,7 @@ parser.add_argument("-r", "--run", help="Path to the run directory. Must contain
 parser.add_argument("-e", "--email", help="Notify status alerts by e-mail.", default = None)
 args = parser.parse_args()
 sampleSheetPath = args.run
+
 # print(args.email)
 email = None if args.email == "None" else args.email
 
@@ -84,7 +85,9 @@ print(f"{currentTime()} | Found {completionFiles}.", flush=True)
 # Read data from the sample sheet
 print(f"{currentTime()} | Checking for pipeline worksheet...", flush=True)
 with tempfile.NamedTemporaryFile() as sampleSheet:
-    file = st.findFile(os.path.join(args.run,"**","*PipelineWorksheet*"))
+    os.chdir(sampleSheetPath) # TODO: This is gross
+    file = st.findFile(".*PipelineWorksheet.*")
+    if not isinstance(file, list): file = [file]
     file = [ f for f in file if "~$" not in f ]
     if (len(file) == 0):
         raise Exception(f"No pipeline worksheet found. Please check '{args.run}'.")
