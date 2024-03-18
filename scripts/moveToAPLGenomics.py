@@ -6,7 +6,7 @@ from runStatus import *
 parser = argparse.ArgumentParser(description='APL NGS File mover')
 parser.add_argument("-p", "--path", help="Path to the sequencing output folder")
 parser.add_argument("-d", "--destination", help="Path to the experiment directory on APL Genomics")
-# parser.add_argument("-t", "--type", help="'Illumina' or 'Nanopore'", required=False)
+parser.add_argument("-t", "--type", help="'Illumina' or 'Nanopore'", required=False)
 args = parser.parse_args()
 path = args.path
 dest = args.destination

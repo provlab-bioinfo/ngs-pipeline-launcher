@@ -35,7 +35,8 @@
             "justMyCode": true,
             "args": [
                 "--p", "/nfs/Genomics_DEV/projects/alindsay/Projects/ngs-pipeline-launcher/data/231221_N_I_130_131_moveAPL/",
-                "--d", "/nfs/Genomics_DEV/projects/alindsay/Projects/ngs-pipeline-launcher/results/231221_N_I_130_131_moveAPL/"              
+                "--d", "/nfs/Genomics_DEV/projects/alindsay/Projects/ngs-pipeline-launcher/results/231221_N_I_130_131_moveAPL/",
+                "--t","blah"              
             ]
         },
         {

@@ -67,7 +67,6 @@ print(f"{currentTime()} | Pipeline launcher initialized")
 parser = argparse.ArgumentParser(description='APL NGS Pipeline Launcher')
 parser.add_argument("-r", "--run", help="Path to the run directory. Must contain the PipelineWorksheet.xlsx.", default = defaultSampleSheet)
 parser.add_argument("-e", "--email", help="Notify status alerts by e-mail.", default = None)
-parser.add_argument("-t", "--type", help="'Illumina' or 'Nanopore'", required=False)
 args = parser.parse_args()
 sampleSheetPath = args.run
 
