@@ -1,6 +1,7 @@
 import pandas as pd, os, search_tools as st, shutil, io, time, subprocess, argparse, tempfile, pathlib, glob, re, glob, re, itertools
 from configparser import ConfigParser
 from datetime import datetime
+from runStatus import *
 pd.options.mode.chained_assignment = None  # default='warn'
 os.chdir(os.path.dirname(__file__))
 
@@ -8,8 +9,6 @@ defaultSampleSheet = "./"
 SLURM = "../templates/SLURM_template.batch"
 barcodeCol = "Barcode"
 samplePosCol = "Sample_Pos"
-
-currentTime = lambda: f"{datetime.now().strftime('%H:%M:%S')}"
 
 def getSampleSheetDataVars(path:str, section:str):
     """Generates a dictionary from the first two columns of a [HEADER] section
@@ -39,33 +38,6 @@ def getSampleSheetDataFrame(path:str, section:str):
     df = pd.read_csv(buf)
     return (df)
 
-def isRunCompleted(path:str, seqType: str = None):
-    """Checks whether a sequencing run is completed. 
-    For Illumina, checks for the 'CompletedJobInfo.xml' file. 
-    For Nanopore, checks for the 'final_summary_*.txt' file.
-    :param path: The path to the experiment directory
-    :param seqType: The type of sequencing. Either 'Illumina' or 'Nanopore'
-    :return: True if complete, False if not
-    """
-    if not os.path.exists(path):
-        return False
-        #raise Exception("Run directory does not exist")
-
-    file = ["final_summary_*.txt","CompletedJobInfo.xml"]
-    if (seqType):
-        if seqType.lower() == "nanopore":
-            file = [file[0]]
-        elif seqType.lower() == "illumina":
-            file = [file[1]]
-
-    found = [glob.glob(os.path.join(path,"**",f), recursive = True) for f in file]
-    found = list(itertools.chain.from_iterable(found))
-
-    if (len(found)):
-        return True
-    else:
-        return False
-
 def generateSLURM(SLURM:str, jobName: str, runName: str, outputDir: str, command: str, email: str = None):
     """Generates a SLURM command file based on a template
     :param SLURM: Path to the template SLURM file
@@ -89,7 +61,7 @@ def generateSLURM(SLURM:str, jobName: str, runName: str, outputDir: str, command
     file.close()
     return(outFile)
 
-print(f"Pipeline launcher started at: {currentTime()}\n")
+print(f"{currentTime()} | Pipeline launcher started")
 
 # Import the arguments
 parser = argparse.ArgumentParser(description='APL NGS Pipeline Launcher')
@@ -97,7 +69,7 @@ parser.add_argument("-r", "--run", help="Path to the run directory. Must contain
 parser.add_argument("-e", "--email", help="Notify status alerts by e-mail.", default = None)
 args = parser.parse_args()
 sampleSheetPath = args.run
-print(args.email)
+# print(args.email)
 email = None if args.email == "None" else args.email
 
 # # Check if run is finished sequencing
@@ -109,7 +81,9 @@ email = None if args.email == "None" else args.email
 with tempfile.NamedTemporaryFile() as sampleSheet:
     file = st.findFile(os.path.join(args.run,"**","*PipelineWorksheet*"))
     file = [ f for f in file if "~$" not in f ]
-    if (len(file) != 1):
+    if (len(file) == 0):
+        raise Exception(f"No PipelineWorksheet found. Please check the directory.")
+    if (len(file) > 1):
         raise Exception(f"More than one PipelineWorksheet identified. Found:\n{file}")
     file = file[0]
     if pathlib.Path(file).suffix == ".xlsx":
@@ -148,12 +122,14 @@ for group in groups:
             if (len(directories[group]) != 0):
                 raise Exception(f"Directory for '{group}' at '{directories[group]}' already exists and is not empty. Please choose empty or non-existing directory.")
 
-print(f"Checking for sequencing completion file in '{basePath}'...", flush=True)
+print(f"{currentTime()} | Checking for sequencing completion file in '{basePath}'...", flush=True)
 
 # Check if run is finished sequencing
-while not isRunCompleted(basePath, header["Seq_Type"]):
-    print(f"   Waiting... ({currentTime()})", flush=True)
+while not (completionFiles := isRunCompleted(basePath)):#isRunCompleted(basePath, header["Seq_Type"]):
+    print(f"{currentTime()} |    Waiting...", flush=True)
     time.sleep(15)#*60)
+
+print(f"{currentTime()} | Found {completionFiles}. Starting move...", flush=True)
 
 # time.sleep(15*60) # Extra wait to make sure everything is done
 
@@ -170,7 +146,6 @@ allSamples[barcodeCol] = allSamples[barcodeCol].apply(label)
 allBarcodes = [label(barcode) for barcode in allBarcodes]
 
 # Split sequencing run into respective folders
-print("\nCopying files...", flush=True)
 for group in groups:
     if group.lower() == "ignore": continue
 
@@ -179,13 +154,13 @@ for group in groups:
     ignore = False
     try: ignore = outDir.lower() == "ignore"
     except KeyError: ignore = True
-    if (ignore): print(f"   Ignoring file copy for {group}"); continue
+    if (ignore): print(f"{currentTime()} |    Ignoring file copy for {group}"); continue
 
     # Move files
-    print(f"   Moving {group} to {outDir}", flush=True)
+    print(f"{currentTime()} |    Moving {group} to {outDir}", flush=True)
     includeSamples = allSamples.loc[allSamples['Sample_Group'] == group][barcodeCol].values.tolist()
     includeSamples = st.sortDigitSuffix(list(includeSamples))
-    print("      Extracting barcodes: " + ", ".join(st.collapseNumbers(includeSamples)), flush=True)
+    print(f"{currentTime()} |       Extracting barcodes: " + ", ".join(st.collapseNumbers(includeSamples)), flush=True)
     excludeSamples = list(set(allBarcodes) - set(includeSamples))
     excludeSamples = st.sortDigitSuffix(list(excludeSamples))
     # print("      Excluding barcodes: " + ", ".join(st.collapseNumbers(excludeSamples)), flush=True)
@@ -199,7 +174,7 @@ for group in groups:
             shutil.copy(os.path.join(basePath, p), os.path.join(outDir, p))
     
 # Setup pipeline
-print("\nConfiguring pipelines...", flush=True)
+print(f"{currentTime()} | Configuring pipelines...", flush=True)
 for group in groups:
     if group.lower() == "ignore": continue
 
@@ -207,14 +182,14 @@ for group in groups:
     ignore = False
     try: ignore = pipelines[group].lower() == "ignore"
     except KeyError: ignore = True
-    if (ignore): print(f"   Ignoring pipeline for {group}"); continue
+    if (ignore): print(f"{currentTime()} |    Ignoring pipeline for {group}"); continue
 
     # Check output dir exists
     if not os.path.exists(directories[group]):
-        print(f"   Output directory does not exist for {group}. Skipping.")
+        print(f"{currentTime()} |    Output directory does not exist for {group}. Skipping.")
         continue
 
-    print(f"   Generating SLURM for {group}...", flush=True)
+    print(f"{currentTime()} |    Generating SLURM for {group}...", flush=True)
 
     # Parse controls
     samples = allSamples.loc[allSamples['Sample_Group'] == group]
@@ -293,6 +268,6 @@ for group in groups:
                               command = "\n".join(commands), 
                               email = email)
     out = subprocess.run(["sbatch",SLURMfile,"-v"], capture_output = True, text = True)
-    print(f"      {out.stdout}", flush=True)
+    # print(f"{currentTime()} |       {out.stdout}", flush=True)
 
-print(f"All files transferred and pipeline initialized at: {currentTime()}\n", flush=True)
+print(f"{currentTime()} | All files transferred and pipeline initialized\n", flush=True)
