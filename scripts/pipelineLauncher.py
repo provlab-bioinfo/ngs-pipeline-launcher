@@ -61,7 +61,7 @@ def generateSLURM(SLURM:str, jobName: str, runName: str, outputDir: str, command
     file.close()
     return(outFile)
 
-print(f"{currentTime()} | Pipeline launcher started")
+print(f"{currentTime()} | Pipeline launcher initialized")
 
 # Import the arguments
 parser = argparse.ArgumentParser(description='APL NGS Pipeline Launcher')
@@ -72,19 +72,27 @@ sampleSheetPath = args.run
 # print(args.email)
 email = None if args.email == "None" else args.email
 
-# # Check if run is finished sequencing
-# while not isRunCompleted(args.run):
-#     print(f"   Waiting... ({currentTime()})", flush=True)
-#     time.sleep(15)#*60)
+print(f"{currentTime()} | Checking for sequencing completion file in '{args.run}'...", flush=True)
+
+# Check if run is finished sequencing
+while not (completionFiles := isRunCompleted(args.run)):#isRunCompleted(basePath, header["Seq_Type"]):
+    print(f"{currentTime()} |    Waiting...", flush=True)
+    time.sleep(15)#*60)
+
+print(f"{currentTime()} | Found {completionFiles}.", flush=True)
 
 # Read data from the sample sheet
+print(f"{currentTime()} | Checking for pipeline worksheet...", flush=True)
 with tempfile.NamedTemporaryFile() as sampleSheet:
     file = st.findFile(os.path.join(args.run,"**","*PipelineWorksheet*"))
     file = [ f for f in file if "~$" not in f ]
     if (len(file) == 0):
-        raise Exception(f"No PipelineWorksheet found. Please check the directory.")
+        raise Exception(f"No pipeline worksheet found. Please check '{args.run}'.")
     if (len(file) > 1):
-        raise Exception(f"More than one PipelineWorksheet identified. Found:\n{file}")
+        raise Exception(f"More than one pipeline worksheet identified. Found:\n{file}.")
+    
+    print(f"{currentTime()} | Found {file}.", flush=True)
+
     file = file[0]
     if pathlib.Path(file).suffix == ".xlsx":
         df = pd.read_excel(file)
@@ -121,15 +129,6 @@ for group in groups:
         if (directories[group] != "ignore"):
             if (len(directories[group]) != 0):
                 raise Exception(f"Directory for '{group}' at '{directories[group]}' already exists and is not empty. Please choose empty or non-existing directory.")
-
-print(f"{currentTime()} | Checking for sequencing completion file in '{basePath}'...", flush=True)
-
-# Check if run is finished sequencing
-while not (completionFiles := isRunCompleted(basePath)):#isRunCompleted(basePath, header["Seq_Type"]):
-    print(f"{currentTime()} |    Waiting...", flush=True)
-    time.sleep(15)#*60)
-
-print(f"{currentTime()} | Found {completionFiles}. Starting move...", flush=True)
 
 # time.sleep(15*60) # Extra wait to make sure everything is done
 

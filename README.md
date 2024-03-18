@@ -19,6 +19,7 @@ When ```PipelineWorksheet.xlsx``` is filled in, launch with:
 
 ```bash
 conda activate ngs-pipeline-launcher
+move_sequencing_files </path/to/src/> </path/to/dest/>
 run_pipeline_launcher </path/to/run/> [E-mail]
 ```
 
@@ -26,15 +27,15 @@ run_pipeline_launcher </path/to/run/> [E-mail]
 
 [Conda](https://conda.io/projects/conda/en/latest/user-guide/install/index.html) is required to build the [environment](/environments/environment.yml) with the necessary workflow dependencies. To create the environment and setup the run command:
 ```bash
-conda env create -f ./environments/environment.yml
+conda env create -f ./environments/environment.yml -y
 conda activate ngs-pipeline-launcher
 cd $CONDA_PREFIX
 mkdir -p ./etc/conda/activate.d
 mkdir -p ./etc/conda/deactivate.d
 touch ./etc/conda/activate.d/env_vars.sh
 touch ./etc/conda/deactivate.d/env_vars.sh
-printf '#!/bin/sh\nrun_pipeline_launcher() { bash /path/to/pipelineLauncher.sh $1 $2; }\nexport -f run_pipeline_launcher' > ./etc/conda/activate.d/env_vars.sh
-printf '#!/bin/sh\nunset run_pipeline_launcher' > ./etc/conda/deactivate.d/env_vars.sh
+printf '#!/bin/sh\nrun_pipeline_launcher() { bash /path/to/pipelineLauncher.sh $1 $2; }\nexport -f run_pipeline_launcher\nmove_sequencing_files() { python /path/to/moveToAPLGenomics.py --p $1 --d $2; }\nexport -f move_sequencing_files' >> ./etc/conda/activate.d/env_vars.sh
+printf '#!/bin/sh\nunset run_pipeline_launcher\unset move_sequencing_files' >> ./etc/conda/deactivate.d/env_vars.sh
 ```
 
 ## Input

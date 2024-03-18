@@ -5,15 +5,14 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "ILL_moveToAPLGenomics",
+            "name": "ONT_PipelineLauncher",
             "type": "python",
             "request": "launch",
-            "program": "scripts/moveToAPLGenomics.py",
+            "program": "scripts/pipelineLauncher.py",
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--p", "/nfs/Genomics_DEV/projects/alindsay/Projects/ngs-pipeline-launcher/data/231221_N_I_130_131_moveAPL/",
-                "--d", "/nfs/Genomics_DEV/projects/alindsay/Projects/ngs-pipeline-launcher/results/231221_N_I_130_131_moveAPL/"              
+                "--run", "/nfs/Genomics_DEV/projects/alindsay/Projects/ngs-pipeline-launcher/data/240307_S_N_046_pipeLaun/"               
             ]
         },
         {
@@ -28,6 +27,18 @@
             ]
         },
         {
+            "name": "ILL_moveToAPLGenomics",
+            "type": "python",
+            "request": "launch",
+            "program": "scripts/moveToAPLGenomics.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--p", "/nfs/Genomics_DEV/projects/alindsay/Projects/ngs-pipeline-launcher/data/231221_N_I_130_131_moveAPL/",
+                "--d", "/nfs/Genomics_DEV/projects/alindsay/Projects/ngs-pipeline-launcher/results/231221_N_I_130_131_moveAPL/"              
+            ]
+        },
+        {
             "name": "ONT_moveToAPLGenomics",
             "type": "python",
             "request": "launch",
@@ -37,17 +48,6 @@
             "args": [
                 "--p", "/nfs/Genomics_DEV/projects/alindsay/Projects/ngs-pipeline-launcher/data/240307_S_N_046_moveAPL/",
                 "--d", "/nfs/Genomics_DEV/projects/alindsay/Projects/ngs-pipeline-launcher/results/240307_S_N_046_moveAPL/"              
-            ]
-        },
-        {
-            "name": "ONT_PipelineLauncher",
-            "type": "python",
-            "request": "launch",
-            "program": "scripts/pipelineLauncher.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "args": [
-                "--run", "/nfs/Genomics_DEV/projects/alindsay/Projects/ngs-pipeline-launcher/data/240307_S_N_046_pipeLaun/"               
             ]
         },
         {
