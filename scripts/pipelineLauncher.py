@@ -6,7 +6,7 @@ pd.options.mode.chained_assignment = None  # default='warn'
 os.chdir(os.path.dirname(__file__))
 
 defaultSampleSheet = "./"
-SLURM = "../templates/SLURM_template.batch"
+SLURM = "/nfs/APL_Genomics/apps/production/ngs-pipeline-launcher/templates/SLURM_template.batch"
 barcodeCol = "Barcode"
 samplePosCol = "Sample_Pos"
 
@@ -86,9 +86,9 @@ print(f"{currentTime()} | Found {completionFiles}.", flush=True)
 print(f"{currentTime()} | Checking for pipeline worksheet...", flush=True)
 with tempfile.NamedTemporaryFile() as sampleSheet:
     os.chdir(sampleSheetPath) # TODO: This is gross
-    file = st.findFile(".*PipelineWorksheet.*")
+    file = st.findFiles2(os.path.join(args.run,"**","*PipelineWorksheet*"))
     if not isinstance(file, list): file = [file]
-    file = [ f for f in file if "~$" not in f ]
+    file = [ f for f in file if "~$" not in f ] # Handle temporary file if open in 
     if (len(file) == 0):
         raise Exception(f"No pipeline worksheet found. Please check '{args.run}'.")
     if (len(file) > 1):
@@ -212,11 +212,11 @@ for group in groups:
             posCtrls = " ".join(posCtrls["Control"].values.tolist())
 
     # Create the SLURM command
-    symlink = lambda dir,link: f"ln -s {st.findFile(os.path.join('./**',dir))[0]} {os.path.join(directories[group],link)}"
+    symlink = lambda dir,link: f"ln -s {st.findFiles2(os.path.join('./**',dir))[0]} {os.path.join(directories[group],link)}"
 
     def symlink(dir,link): # Creates symlink command
         path = os.path.join(directories[group],"**",dir)
-        file = st.findFile(path)
+        file = st.findFiles2(path)
         if (len(file) < 1): 
             raise Exception(f"Error: No directory found for '{path}'")
         elif(len(file) > 1):
