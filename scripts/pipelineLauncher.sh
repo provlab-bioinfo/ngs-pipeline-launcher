@@ -1,5 +1,6 @@
 #!/bin/bash
 eval "$(conda shell.bash hook)"
+conda activate ngs-pipeline-launcher
 RUN=$1
 EMAIL=${2-None}
 TEMP="${RUN%/}"
