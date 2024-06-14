@@ -27,6 +27,5 @@ sbatch << EOT
 cd /nfs/APL_Genomics/scratch/
 python /nfs/APL_Genomics/apps/production/ngs-pipeline-launcher/scripts/pipelineLauncher.py -r $RUN -e $EMAIL
 
-quit
 EOT
 exit 0

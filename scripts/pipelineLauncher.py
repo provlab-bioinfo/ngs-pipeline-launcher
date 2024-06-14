@@ -73,10 +73,10 @@ sampleSheetPath = args.run
 # print(args.email)
 email = None if args.email == "None" else args.email
 
-print(f"{currentTime()} | Checking for sequencing completion file in '{args.run}'...", flush=True)
+print(f"{currentTime()} | Checking for sequencing completion file in '{sampleSheetPath}'...", flush=True)
 
 # Check if run is finished sequencing
-while not (completionFiles := isRunCompleted(args.run)):#isRunCompleted(basePath, header["Seq_Type"]):
+while not (completionFiles := isRunCompleted(sampleSheetPath)):#isRunCompleted(basePath, header["Seq_Type"]):
     print(f"{currentTime()} |    Waiting...", flush=True)
     time.sleep(15)#*60)
 
@@ -86,11 +86,11 @@ print(f"{currentTime()} | Found {completionFiles}.", flush=True)
 print(f"{currentTime()} | Checking for pipeline worksheet...", flush=True)
 with tempfile.NamedTemporaryFile() as sampleSheet:
     os.chdir(sampleSheetPath) # TODO: This is gross
-    file = st.findFiles2(os.path.join(args.run,"**","*PipelineWorksheet*"))
+    file = st.findFiles2(os.path.join(sampleSheetPath,"**","*PipelineWorksheet*"))
     if not isinstance(file, list): file = [file]
     file = [ f for f in file if "~$" not in f ] # Handle temporary file if open in 
     if (len(file) == 0):
-        raise Exception(f"No pipeline worksheet found. Please check '{args.run}'.")
+        raise Exception(f"No pipeline worksheet found. Please check '{sampleSheetPath}'.")
     if (len(file) > 1):
         raise Exception(f"More than one pipeline worksheet identified. Found:\n{file}.")
     
@@ -196,20 +196,22 @@ for group in groups:
     # Parse controls
     samples = allSamples.loc[allSamples['Sample_Group'] == group]
     ctrls = samples.dropna(subset=['Control'])
+    negCtrls = posCtrls = pd.DataFrame()
     samples = samples[samples['Control'].isna()]
 
-    negCtrls = ctrls['Control'].str.lower() == "negative"
-    if (any(negCtrls)):
-        negCtrls = ctrls.loc[negCtrls]
-        if (len(negCtrls)):
-            negCtrls = ",".join(map(str,negCtrls[samplePosCol].values.tolist()))
+    if(len(ctrls.index)):
+        negCtrls = ctrls['Control'].str.lower() == "negative"
+        if (any(negCtrls)):
+            negCtrls = ctrls.loc[negCtrls]
+            if (len(negCtrls)):
+                negCtrls = ",".join(map(str,negCtrls[samplePosCol].values.tolist()))
 
-    posCtrls = ctrls['Control'].str.lower() != "negative"
-    if (any(posCtrls)):
-        posCtrls = ctrls.loc[posCtrls]
-        if (len(posCtrls)):
-            posCtrls["Control"] = posCtrls[samplePosCol].astype(str) +","+ posCtrls["Control"].astype(str)
-            posCtrls = " ".join(posCtrls["Control"].values.tolist())
+        posCtrls = ctrls['Control'].str.lower() != "negative"
+        if (any(posCtrls)):
+            posCtrls = ctrls.loc[posCtrls]
+            if (len(posCtrls)):
+                posCtrls["Control"] = posCtrls[samplePosCol].astype(str) +","+ posCtrls["Control"].astype(str)
+                posCtrls = " ".join(posCtrls["Control"].values.tolist())
 
     # Create the SLURM command
     symlink = lambda dir,link: f"ln -s {st.findFiles2(os.path.join('./**',dir))[0]} {os.path.join(directories[group],link)}"
