@@ -73,6 +73,17 @@
                 "--run", "/nfs/Genomics_DEV/projects/alindsay/Projects/ngs-pipeline-launcher/results/240307_S_N_046_moveAPL/"          
             ]
         },
+        {
+            "name": "test",
+            "type": "python",
+            "request": "launch",
+            "program": "scripts/pipelineLauncher.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--run", "/nfs/APL_Genomics/241003_N_I_138_139"          
+            ]
+        },
 
     ],
     "compounds": [

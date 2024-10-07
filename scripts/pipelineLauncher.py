@@ -201,17 +201,13 @@ for group in groups:
 
     if(len(ctrls.index)):
         negCtrls = ctrls['Control'].str.lower() == "negative"
-        if (any(negCtrls)):
-            negCtrls = ctrls.loc[negCtrls]
-            if (len(negCtrls)):
-                negCtrls = ",".join(map(str,negCtrls[samplePosCol].values.tolist()))
+        negCtrls = ctrls.loc[negCtrls==True]
+        negCtrls = ",".join(map(str,negCtrls[samplePosCol].values.tolist()))
 
         posCtrls = ctrls['Control'].str.lower() != "negative"
-        if (any(posCtrls)):
-            posCtrls = ctrls.loc[posCtrls]
-            if (len(posCtrls)):
-                posCtrls["Control"] = posCtrls[samplePosCol].astype(str) +","+ posCtrls["Control"].astype(str)
-                posCtrls = " ".join(posCtrls["Control"].values.tolist())
+        posCtrls = ctrls.loc[posCtrls==True]
+        posCtrls["Control"] = posCtrls[samplePosCol].astype(str) +","+ posCtrls["Control"].astype(str)
+        posCtrls = " ".join(posCtrls["Control"].values.tolist())
 
     # Create the SLURM command
     symlink = lambda dir,link: f"ln -s {st.findFiles2(os.path.join('./**',dir))[0]} {os.path.join(directories[group],link)}"
