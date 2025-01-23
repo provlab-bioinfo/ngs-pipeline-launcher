@@ -1,3 +1,6 @@
+# ngs-pipeline-launcher 0.2.0.1 - 23 Jan 2025
+* Feat: Added support for Pulsenet
+
 # pipelineLauncher 0.1.0.3 - 2 Nov 2023
 * Feat: Sample barcodes collapse to ranges (e.g., 1,2,3,4,5,10 => 1-5,10)
 

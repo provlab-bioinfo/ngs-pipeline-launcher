@@ -170,10 +170,18 @@ for group in groups:
     excludeSamples = excludeSamples + ["fail","skip","unclassified","Undetermined","~$"]
     excludeSamples = "|".join(excludeSamples)
 
-    for p in glob.glob('**', recursive=True, root_dir=basePath):
-        if os.path.isfile(os.path.join(basePath, p)) and not re.search(excludeSamples, p):            
-            os.makedirs(os.path.join(outDir, os.path.dirname(p)), exist_ok=True)
-            shutil.copy(os.path.join(basePath, p), os.path.join(outDir, p))
+    pathfilter = "**"
+
+    if (group == "PulseNet"):
+        pathfilter = "**/*fastq.gz"
+
+    for p in glob.glob(pathfilter, recursive=True, root_dir=basePath):
+        if os.path.isfile(os.path.join(basePath, p)) and not re.search(excludeSamples, p):     
+
+            p_dest = p if (group != "PulseNet") else p[p.rindex('/')+1:]
+            
+            os.makedirs(os.path.join(outDir, os.path.dirname(p_dest)), exist_ok=True)
+            shutil.copy(os.path.join(basePath, p), os.path.join(outDir, p_dest))
     
 # Setup pipeline
 print(f"{currentTime()} | Configuring pipelines...", flush=True)
@@ -208,6 +216,10 @@ for group in groups:
         posCtrls = ctrls.loc[posCtrls==True]
         posCtrls["Control"] = posCtrls[samplePosCol].astype(str) +","+ posCtrls["Control"].astype(str)
         posCtrls = " ".join(posCtrls["Control"].values.tolist())
+
+    
+    # Parse extra data
+    accessions = allSamples.loc[allSamples['Sample_Group'] == group]
 
     # Create the SLURM command
     symlink = lambda dir,link: f"ln -s {st.findFiles2(os.path.join('./**',dir))[0]} {os.path.join(directories[group],link)}"
@@ -248,6 +260,12 @@ for group in groups:
         if len(posCtrls): command = command + " -p {}".format(posCtrls)
         if len(negCtrls): command = command + " -c {}".format(negCtrls)
         commands.append(command)
+
+    elif (group == "PulseNet"):
+        parentDir = os.path.dirname(directories[group].rstrip("/")) + "/"
+        baseDir = os.path.basename(directories[group].strip("/"))
+        commands.append("conda activate pulsenet_analysis_pipeline")               
+        commands.append(f"python {pipelines[group]} -d {parentDir} -r {baseDir}")
 
     elif (group == "fluA"):
         commands.append("mkdir fastq")

@@ -81,7 +81,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--run", "/nfs/APL_Genomics/241003_N_I_138_139"          
+                "--run", "/nfs/APL_Genomics/scratch/241031_N_I_166_167"          
             ]
         },
 
