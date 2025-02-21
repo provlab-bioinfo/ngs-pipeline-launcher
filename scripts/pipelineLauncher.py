@@ -104,18 +104,23 @@ with tempfile.NamedTemporaryFile() as sampleSheet:
     else: sampleSheetPath = file
 
     header = getSampleSheetDataVars(sampleSheetPath, "Header") 
+    runName = header['Run_Name'].strip()
+    runDir = header["Run_Dir"].strip()
+    seqType = header["Seq_Type"].lower().strip()
+    baseCall = header["Base_Call"].lower().strip()
+        
     pipelines = getSampleSheetDataVars(sampleSheetPath, "Pipelines")
     directories = getSampleSheetDataVars(sampleSheetPath, "Directories")   
-    directories = {group: os.path.join(dir,header["Run_Name"]) for group, dir in directories.items()}
+    directories = {group: os.path.join(dir,runName) for group, dir in directories.items()}
     allSamples = getSampleSheetDataFrame(sampleSheetPath, "Samples")
 
-basePath = header["Run_Dir"]
+
 
 # Check for appropriate inputs
-if header["Seq_Type"].lower() not in ["nanopore","illumina"]:
+if seqType not in ["nanopore","illumina"]:
     raise Exception(f"Seq_Type must be either 'Nanopore' or 'Illumina' in the pipeline worksheet. Found: {header['Seq_Type']}")
 
-if header["Base_Call"].lower() not in ["yes","no"]:
+if baseCall not in ["yes","no"]:
     raise Exception(f"Base_Call must be either 'Yes' or 'No' in the pipeline worksheet. Found: {header['Base_Call']}")
 
 groups = sorted(set(allSamples["Sample_Group"].dropna().values))
@@ -139,9 +144,9 @@ for group in groups:
 allSamples[samplePosCol] = allSamples[barcodeCol]
 allBarcodes = range(1,1000)
 
-if (header["Seq_Type"].lower() == "nanopore"):
+if (seqType == "nanopore"):
     label = lambda x: f"_barcode{x}" if int(x) > 10 else f"_barcode0{x}"
-elif (header["Seq_Type"].lower() == "illumina"):
+elif (seqType == "illumina"):
     label = lambda x: f"{x}_S"
     
 allSamples[barcodeCol] = allSamples[barcodeCol].apply(label)
@@ -239,17 +244,17 @@ for group in groups:
     commands = []
     if (group == "ncov" or group == "ncov-ww"):
         # Do symlinks
-        if header["Seq_Type"] == "Nanopore":
+        if seqType == "nanopore":
             commands.append(symlink("fast5_pass","fast5"))   
             commands.append(symlink("fastq_pass","gup_out"))   
-        elif header["Seq_Type"] == "Illumina":
+        elif seqType == "illumina":
             commands.append(symlink("Fastq","fastq")) 
 
         # Go to parent dir
         parentDir = os.path.dirname(directories[group].rstrip("/")) + "/"
         commands.append("\ncd {}\n".format(parentDir))
 
-        basecall = 1 if header["Base_Call"].lower() == "yes" else 2
+        basecall = 1 if baseCall == "yes" else 2
 
         baseDir = os.path.basename(directories[group].strip("/"))
 
@@ -283,8 +288,8 @@ for group in groups:
 
     # Generate the SLURM file
     SLURMfile = generateSLURM(SLURM = SLURM, 
-                              jobName = group+"_"+header["Run_Name"], 
-                              runName = header["Run_Name"], 
+                              jobName = group+"_"+runName, 
+                              runName = runName, 
                               outputDir = directories[group], 
                               command = "\n".join(commands), 
                               email = email)
