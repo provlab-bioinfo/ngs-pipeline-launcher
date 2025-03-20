@@ -175,18 +175,20 @@ for group in groups:
     excludeSamples = excludeSamples + ["fail","skip","unclassified","Undetermined","~$"]
     excludeSamples = "|".join(excludeSamples)
 
-    pathfilter = "**"
+    pathfilter = ["**"]
 
     if (group == "PulseNet"):
-        pathfilter = "**/*fastq.gz"
+        pathfilter = ["**/*fastq.gz"]
 
-    for p in glob.glob(pathfilter, recursive=True, root_dir=basePath):
-        if os.path.isfile(os.path.join(basePath, p)) and not re.search(excludeSamples, p):     
+    if (group == "ncov-R10"):
+        pathfilter = ["**/*fastq.gz","**/report_*.json"]    
 
-            p_dest = p if (group != "PulseNet") else p[p.rindex('/')+1:]
-            
-            os.makedirs(os.path.join(outDir, os.path.dirname(p_dest)), exist_ok=True)
-            shutil.copy(os.path.join(basePath, p), os.path.join(outDir, p_dest))
+    for f in pathfilter:
+        for p in glob.glob(f, recursive=True, root_dir=runDir):
+            if os.path.isfile(os.path.join(runDir, p)) and not re.search(excludeSamples, p):   
+                p_dest = p if (group != "PulseNet") else p[p.rindex('/')+1:]                
+                os.makedirs(os.path.join(outDir, os.path.dirname(p_dest)), exist_ok=True)
+                shutil.copy(os.path.join(runDir, p), os.path.join(outDir, p_dest))
     
 # Setup pipeline
 print(f"{currentTime()} | Configuring pipelines...", flush=True)
@@ -262,9 +264,12 @@ for group in groups:
         command = f"python {pipelines[group]} -d {parentDir} -r {baseDir} -b {basecall}"
         if (group == "ncov-ww"): command = command + " -f"
 
-        if len(posCtrls): command = command + " -p {}".format(posCtrls)
-        if len(negCtrls): command = command + " -c {}".format(negCtrls)
+        if len(posCtrls): command = f"{command} -p {posCtrls}"
+        if len(negCtrls): command = f"{command} -c {negCtrls}"
         commands.append(command)
+
+    elif(group == "ncov-R10"):
+        commands.append(f"bash {pipelines[group]} {runDir} {negCtrls}")
 
     elif (group == "PulseNet"):
         parentDir = os.path.dirname(directories[group].rstrip("/")) + "/"
@@ -276,7 +281,7 @@ for group in groups:
         commands.append("mkdir fastq")
         commands.append("for var in {{1..101}}; do rsync -avr */Alignment_1/*Fastq/$var\_*.fastq.gz fastq/; done")
         commands.append("cd fastq")
-        commands.append(f"for var in *.gz; do mv $var {header['Run_Name']}_$var ; done")
+        commands.append(f"for var in *.gz; do mv $var {runName}_$var ; done")
         commands.append("cd ..")
         commands.append("prog_dir=/nfs/APL_Genomics/apps/production/influenza/influenza-pipeline")
         commands.append('for x in $(find -L ./fastq -name "*R1*.fastq.gz"); do name="${x/.\/fastq\//}"; bash ${prog_dir}/generate-influenza-consensus.txt --r1 $x --r2 ${x/_R1_/_R2_} --db ${prog_dir}/influenzaDB-2022-12-08/ --outdir results --prefix ${name/_R*/}; done')

@@ -16,7 +16,7 @@ def isRunCompleted(path:str, seqType: str = None):
         return False
         #raise Exception("Run directory does not exist")
 
-    file = ["final_summary_*.txt","CompletedJobInfo.xml"]
+    file = ["final_summary_*.txt","CompletedJobInfo.xml","RunCompletionStatus.xml"]
     if (seqType):
         if seqType.lower() == "nanopore":
             file = [file[0]]
