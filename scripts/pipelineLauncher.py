@@ -104,7 +104,7 @@ with tempfile.NamedTemporaryFile() as sampleSheet:
     else: sampleSheetPath = file
 
     header = getSampleSheetDataVars(sampleSheetPath, "Header") 
-    runName = header['Run_Name'].strip()
+    runName = header["Run_Name"].strip()
     runDir = header["Run_Dir"].strip()
     seqType = header["Seq_Type"].lower().strip()
     baseCall = header["Base_Call"].lower().strip()
@@ -114,14 +114,15 @@ with tempfile.NamedTemporaryFile() as sampleSheet:
     directories = {group: os.path.join(dir,runName) for group, dir in directories.items()}
     allSamples = getSampleSheetDataFrame(sampleSheetPath, "Samples")
 
-
-
 # Check for appropriate inputs
 if seqType not in ["nanopore","illumina"]:
     raise Exception(f"Seq_Type must be either 'Nanopore' or 'Illumina' in the pipeline worksheet. Found: {header['Seq_Type']}")
 
 if baseCall not in ["yes","no"]:
     raise Exception(f"Base_Call must be either 'Yes' or 'No' in the pipeline worksheet. Found: {header['Base_Call']}")
+
+if not os.path.isdir(runDir):
+    raise Exception(f"Run directory does not exist. Found: {header['Run_Dir']}")
 
 groups = sorted(set(allSamples["Sample_Group"].dropna().values))
 for group in groups:
@@ -183,12 +184,16 @@ for group in groups:
     if (group == "ncov-R10"):
         pathfilter = ["**/*fastq.gz","**/report_*.json"]    
 
+    fileCount = 0
+
     for f in pathfilter:
         for p in glob.glob(f, recursive=True, root_dir=runDir):
             if os.path.isfile(os.path.join(runDir, p)) and not re.search(excludeSamples, p):   
                 p_dest = p if (group != "PulseNet") else p[p.rindex('/')+1:]                
                 os.makedirs(os.path.join(outDir, os.path.dirname(p_dest)), exist_ok=True)
                 shutil.copy(os.path.join(runDir, p), os.path.join(outDir, p_dest))
+                fileCount = fileCount + 1
+    print(f"{currentTime()} |       Copied files: {fileCount}", flush=True)
     
 # Setup pipeline
 print(f"{currentTime()} | Configuring pipelines...", flush=True)
