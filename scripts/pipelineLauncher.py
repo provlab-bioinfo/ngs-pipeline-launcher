@@ -179,7 +179,7 @@ for group in groups:
     pathfilter = ["**"]
 
     if (group == "PulseNet"):
-        pathfilter = ["**/*fastq.gz"]
+        pathfilter = ["**/*fastq.gz","**/*PipelineWorksheet*"]
 
     if (group == "ncov-R10"):
         pathfilter = ["**/*fastq.gz","**/report_*.json"]    
