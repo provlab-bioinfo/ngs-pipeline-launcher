@@ -189,7 +189,7 @@ for group in groups:
     for f in pathfilter:
         for p in glob.glob(f, recursive=True, root_dir=runDir):
             if os.path.isfile(os.path.join(runDir, p)) and not re.search(excludeSamples, p):   
-                p_dest = p if (group != "PulseNet") else p[p.rindex('/')+1:]                
+                p_dest = p if (group != "PulseNet") else os.path.basename(p)
                 os.makedirs(os.path.join(outDir, os.path.dirname(p_dest)), exist_ok=True)
                 shutil.copy(os.path.join(runDir, p), os.path.join(outDir, p_dest))
                 fileCount = fileCount + 1
