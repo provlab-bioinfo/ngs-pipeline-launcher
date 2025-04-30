@@ -1,5 +1,6 @@
 import pandas as pd, os, search_tools as st, shutil, io, time, subprocess, argparse, tempfile, pathlib, glob, re, glob, re, itertools
 from configparser import ConfigParser
+import openpyxl as xl
 from datetime import datetime
 from runStatus import *
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -37,6 +38,23 @@ def getSampleSheetDataFrame(path:str, section:str):
     buf.seek(0)
     df = pd.read_csv(buf)
     return (df)
+
+def subsetWorksheet(path:str, group:str, out_path:str):
+    """Generates a DataFrame from a [HEADER] section
+    :param group: The group to look for in the column 'Sample_Group'
+    :param path: The output path of the subsetted pipeline worksheet
+    :return: A DataFrame representing the sections
+    """ 
+    wb = xl.load_workbook(path)
+    ws = wb.active
+    rows = list(ws.iter_rows(min_row=1, max_row=ws.max_row))
+    for row in reversed(rows): 
+        cell = row[2] # col idx 3 is Sample_Group
+        if cell.value == "Sample_Group":
+            break
+        if cell.value != group:
+            ws.delete_rows(cell.row, 1)
+    wb.save(out_path)
 
 def generateSLURM(SLURM:str, jobName: str, runName: str, outputDir: str, command: str, email: str = None):
     """Generates a SLURM command file based on a template
@@ -111,7 +129,7 @@ with tempfile.NamedTemporaryFile() as sampleSheet:
         
     pipelines = getSampleSheetDataVars(sampleSheetPath, "Pipelines")
     directories = getSampleSheetDataVars(sampleSheetPath, "Directories")   
-    directories = {group: os.path.join(dir,runName) for group, dir in directories.items()}
+    directories = {group: os.path.join(dir,runName) for group, dir in directories.items()} # Adds path name to end of directory path
     allSamples = getSampleSheetDataFrame(sampleSheetPath, "Samples")
 
 # Check for appropriate inputs
@@ -173,13 +191,13 @@ for group in groups:
     excludeSamples = st.sortDigitSuffix(list(excludeSamples))
     # print("      Excluding barcodes: " + ", ".join(st.collapseNumbers(excludeSamples)), flush=True)
     excludeSamples = [f"\/{sample}|\/.*_{sample}" for sample in excludeSamples]
-    excludeSamples = excludeSamples + ["fail","skip","unclassified","Undetermined","~$"]
+    excludeSamples = excludeSamples + ["fail","skip","unclassified","Undetermined","~$","PipelineWorksheet"]
     excludeSamples = "|".join(excludeSamples)
 
     pathfilter = ["**"]
 
     if (group == "PulseNet"):
-        pathfilter = ["**/*fastq.gz","**/*PipelineWorksheet*"]
+        pathfilter = ["**/*fastq.gz"]
 
     if (group == "ncov-R10"):
         pathfilter = ["**/*fastq.gz","**/report_*.json"]    
@@ -194,6 +212,8 @@ for group in groups:
                 shutil.copy(os.path.join(runDir, p), os.path.join(outDir, p_dest))
                 fileCount = fileCount + 1
     print(f"{currentTime()} |       Copied files: {fileCount}", flush=True)
+    
+    subsetWorksheet(file, group, os.path.join(outDir,os.path.basename(file)))
     
 # Setup pipeline
 print(f"{currentTime()} | Configuring pipelines...", flush=True)

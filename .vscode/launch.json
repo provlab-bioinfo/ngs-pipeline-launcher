@@ -81,7 +81,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--run", "/nfs/APL_Genomics/raw/250324_N_I_045"          
+                "--run", "/nfs/APL_Genomics/raw/250331_N_I_048"          
             ]
         },
 

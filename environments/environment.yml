@@ -8,6 +8,7 @@ dependencies:
   - numpy=1.24.2
   - pandas=2.0.0
   - pyahocorasick=2.0.0
+  - openpyxl
   - pip
   - pip:
     - git+https://github.com/provlab-bioinfo/search-tools
