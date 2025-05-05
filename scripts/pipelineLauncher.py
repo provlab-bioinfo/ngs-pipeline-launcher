@@ -10,6 +10,7 @@ defaultSampleSheet = "./"
 SLURM = "/nfs/APL_Genomics/apps/production/ngs-pipeline-launcher/templates/SLURM_template.batch"
 barcodeCol = "Barcode"
 samplePosCol = "Sample_Pos"
+symlinkFQ = False
 
 def getSampleSheetDataVars(path:str, section:str):
     """Generates a dictionary from the first two columns of a [HEADER] section
@@ -202,14 +203,19 @@ for group in groups:
     if (group == "ncov-R10"):
         pathfilter = ["**/*fastq.gz","**/report_*.json"]    
 
-    fileCount = 0
+    fileCount = 0    
 
     for f in pathfilter:
         for p in glob.glob(f, recursive=True, root_dir=runDir):
             if os.path.isfile(os.path.join(runDir, p)) and not re.search(excludeSamples, p):   
                 p_dest = p if (group != "PulseNet") else os.path.basename(p)
                 os.makedirs(os.path.join(outDir, os.path.dirname(p_dest)), exist_ok=True)
-                shutil.copy(os.path.join(runDir, p), os.path.join(outDir, p_dest))
+                src = os.path.join(runDir, p)
+                dst = os.path.join(outDir, p_dest)
+                if symlinkFQ and pathlib.Path(p).suffix.lower() in [".fastq", ".fq"]:
+                    os.symlink(src, dst)
+                else:
+                    shutil.copy(src, dst)
                 fileCount = fileCount + 1
     print(f"{currentTime()} |       Copied files: {fileCount}", flush=True)
     
