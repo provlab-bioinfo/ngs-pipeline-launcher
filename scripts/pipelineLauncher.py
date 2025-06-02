@@ -192,7 +192,7 @@ for group in groups:
     excludeSamples = st.sortDigitSuffix(list(excludeSamples))
     # print("      Excluding barcodes: " + ", ".join(st.collapseNumbers(excludeSamples)), flush=True)
     excludeSamples = [f"\/{sample}|\/.*_{sample}" for sample in excludeSamples]
-    excludeSamples = excludeSamples + ["fail","skip","unclassified","Undetermined","~$","PipelineWorksheet"]
+    excludeSamples = excludeSamples + ["fail","skip","unclassified","Undetermined","~$","PipelineWorksheet","pod5"]
     excludeSamples = "|".join(excludeSamples)
 
     pathfilter = ["**"]
