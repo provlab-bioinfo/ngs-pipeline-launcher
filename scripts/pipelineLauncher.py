@@ -116,7 +116,7 @@ with tempfile.NamedTemporaryFile() as sampleSheet:
     print(f"{currentTime()} | Found {file}.", flush=True)
 
     file = file[0]
-    if pathlib.Path(file).suffix == ".xlsx":
+    if pathlib.Path(file).suffix.lower() == ".xlsx":
         df = pd.read_excel(file)
         sampleSheetPath = sampleSheet.name
         df.to_csv(sampleSheetPath, index=False)
@@ -300,7 +300,8 @@ for group in groups:
         commands.append(command)
 
     elif(group == "ncov-R10"):
-        commands.append(f"bash {pipelines[group]} {runDir} {negCtrls}")
+        baseDir = os.path.basename(directories[group].strip("/"))
+        commands.append(f"bash {pipelines[group]} {baseDir} {negCtrls}")
 
     elif (group == "PulseNet"):
         parentDir = os.path.dirname(directories[group].rstrip("/")) + "/"
