@@ -76,6 +76,7 @@ def generateSLURM(SLURM:str, jobName: str, runName: str, outputDir: str, command
     outFile = os.path.join(outputDir,runName+"_SLURM.batch")
     file = open(outFile, "wt+")
     file.write(data)
+    file.write(f"\n\ncd {outputDir}")
     file.write("\n\n"+command)
     file.close()
     return(outFile)
@@ -192,16 +193,10 @@ for group in groups:
     excludeSamples = st.sortDigitSuffix(list(excludeSamples))
     # print("      Excluding barcodes: " + ", ".join(st.collapseNumbers(excludeSamples)), flush=True)
     excludeSamples = [f"\/{sample}|\/.*_{sample}" for sample in excludeSamples]
-    excludeSamples = excludeSamples + ["fail","skip","unclassified","Undetermined","~$","PipelineWorksheet","pod5"]
+    excludeSamples = excludeSamples + ["fail","skip","unclassified","Undetermined","~$","pod5"]
     excludeSamples = "|".join(excludeSamples)
 
-    pathfilter = ["**"]
-
-    if (group == "PulseNet"):
-        pathfilter = ["**/*fastq.gz"]
-
-    if (group == "ncov-R10"):
-        pathfilter = ["**/*fastq.gz","**/report_*.json"]    
+    pathfilter = ["**/*fastq.gz","**/report_*.json","**/*PipelineWorksheet*"]  
 
     fileCount = 0    
 
@@ -219,7 +214,7 @@ for group in groups:
                 fileCount = fileCount + 1
     print(f"{currentTime()} |       Copied files: {fileCount}", flush=True)
     
-    subsetWorksheet(file, group, os.path.join(outDir,os.path.basename(file)))
+    #subsetWorksheet(file, group, os.path.join(outDir,os.path.basename(file)))
     
 # Setup pipeline
 print(f"{currentTime()} | Configuring pipelines...", flush=True)
@@ -255,7 +250,6 @@ for group in groups:
         posCtrls["Control"] = posCtrls[samplePosCol].astype(str) +","+ posCtrls["Control"].astype(str)
         posCtrls = " ".join(posCtrls["Control"].values.tolist())
 
-    
     # Parse extra data
     accessions = allSamples.loc[allSamples['Sample_Group'] == group]
 
@@ -319,6 +313,9 @@ for group in groups:
         commands.append('for x in $(find -L ./fastq -name "*R1*.fastq.gz"); do name="${x/.\/fastq\//}"; bash ${prog_dir}/generate-influenza-consensus.txt --r1 $x --r2 ${x/_R1_/_R2_} --db ${prog_dir}/influenzaDB-2022-12-08/ --outdir results --prefix ${name/_R*/}; done')
         commands.append(f"cat results/*/*.tsv | perl -ne 'BEGIN{{$h=0;}}if(/^contig/){{if($h == 0){{$h = 1; print $_;}}else{{next;}}}}else{{print $_;}}' > ./results/{header['Run_Name']}.summary.tsv")
         commands.append('echo "Job finished with exit code $? at: `date`"')     
+
+    elif (group == "Strep"):
+        commands.append(f"bash {pipelines[group]} {runDir}")
 
     else:
         command = pipelines[group]
