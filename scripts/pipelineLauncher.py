@@ -192,7 +192,7 @@ for group in groups:
     excludeSamples = list(set(allBarcodes) - set(includeSamples))
     excludeSamples = st.sortDigitSuffix(list(excludeSamples))
     # print("      Excluding barcodes: " + ", ".join(st.collapseNumbers(excludeSamples)), flush=True)
-    excludeSamples = [f"\/{sample}|\/.*_{sample}" for sample in excludeSamples]
+    excludeSamples = [f"\/{sample}|\/.*_{sample}|\/.*-{sample}" for sample in excludeSamples]
     excludeSamples = excludeSamples + ["fail","skip","unclassified","Undetermined","~$","pod5"]
     excludeSamples = "|".join(excludeSamples)
 
@@ -303,16 +303,19 @@ for group in groups:
         commands.append("conda activate pulsenet_analysis_pipeline")               
         commands.append(f"python {pipelines[group]} -d {parentDir} -r {baseDir}")
 
-    elif (group == "fluA"):
-        commands.append("mkdir fastq")
-        commands.append("for var in {{1..101}}; do rsync -avr */Alignment_1/*Fastq/$var\_*.fastq.gz fastq/; done")
-        commands.append("cd fastq")
-        commands.append(f"for var in *.gz; do mv $var {runName}_$var ; done")
-        commands.append("cd ..")
-        commands.append("prog_dir=/nfs/APL_Genomics/apps/production/influenza/influenza-pipeline")
-        commands.append('for x in $(find -L ./fastq -name "*R1*.fastq.gz"); do name="${x/.\/fastq\//}"; bash ${prog_dir}/generate-influenza-consensus.txt --r1 $x --r2 ${x/_R1_/_R2_} --db ${prog_dir}/influenzaDB-2022-12-08/ --outdir results --prefix ${name/_R*/}; done')
-        commands.append(f"cat results/*/*.tsv | perl -ne 'BEGIN{{$h=0;}}if(/^contig/){{if($h == 0){{$h = 1; print $_;}}else{{next;}}}}else{{print $_;}}' > ./results/{header['Run_Name']}.summary.tsv")
-        commands.append('echo "Job finished with exit code $? at: `date`"')     
+    elif (group == "flu"):
+
+        commands.append(f"bash {pipelines[group]} {directories[group]}")
+
+        # commands.append("mkdir fastq")
+        # commands.append("for var in {{1..101}}; do rsync -avr */Alignment_1/*Fastq/$var\_*.fastq.gz fastq/; done")
+        # commands.append("cd fastq")
+        # commands.append(f"for var in *.gz; do mv $var {runName}_$var ; done")
+        # commands.append("cd ..")
+        # commands.append("prog_dir=/nfs/APL_Genomics/apps/production/influenza/influenza-pipeline")
+        # commands.append('for x in $(find -L ./fastq -name "*R1*.fastq.gz"); do name="${x/.\/fastq\//}"; bash ${prog_dir}/generate-influenza-consensus.txt --r1 $x --r2 ${x/_R1_/_R2_} --db ${prog_dir}/influenzaDB-2022-12-08/ --outdir results --prefix ${name/_R*/}; done')
+        # commands.append(f"cat results/*/*.tsv | perl -ne 'BEGIN{{$h=0;}}if(/^contig/){{if($h == 0){{$h = 1; print $_;}}else{{next;}}}}else{{print $_;}}' > ./results/{header['Run_Name']}.summary.tsv")
+        # commands.append('echo "Job finished with exit code $? at: `date`"')     
 
     elif (group == "Strep"):
         commands.append(f"bash {pipelines[group]} {runDir}")
