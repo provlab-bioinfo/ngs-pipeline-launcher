@@ -286,8 +286,7 @@ def runLauncher(sampleSheetPath: str, email: str = None):
             commands.append(command)
 
         elif(group == "ncov-R10"):
-            baseDir = os.path.basename(directories[group].strip("/"))
-            commands.append(f"bash {pipelines[group]} {baseDir} {negCtrls}")
+            commands.append(f"bash {pipelines[group]} {directories[group]} {negCtrls}")
 
         elif (group == "PulseNet"):
             parentDir = os.path.dirname(directories[group].rstrip("/")) + "/"
