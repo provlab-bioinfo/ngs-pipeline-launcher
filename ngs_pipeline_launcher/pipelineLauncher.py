@@ -81,7 +81,7 @@ def generateSLURM(SLURM:str, jobName: str, runName: str, outputDir: str, command
     file.close()
     return(outFile)
 
-def runLauncher(sampleSheetPath: str, email: str = None):
+def runLauncher(sampleSheetPath: str, email: str = None, force = False):
 
     print(f"{currentTime()} | Pipeline launcher initialized")
 
@@ -149,7 +149,11 @@ def runLauncher(sampleSheetPath: str, email: str = None):
         if os.path.exists(directories[group]):
             if (directories[group] != "ignore"):
                 if (len(directories[group]) != 0):
-                    raise Exception(f"Directory for '{group}' at '{directories[group]}' already exists and is not empty. Please choose empty or non-existing directory.")
+                    if not force:
+                        raise Exception(f"Directory for '{group}' at '{directories[group]}' already exists and is not empty. Please choose empty or non-existing directory.")
+                    else:
+                        print(f"{currentTime()} | Removing dir: {directories[group]}.", flush=True)
+                        shutil.rmtree(directories[group])
 
     # time.sleep(15*60) # Extra wait to make sure everything is done
 
@@ -317,9 +321,7 @@ def runLauncher(sampleSheetPath: str, email: str = None):
 parser = argparse.ArgumentParser(description='APL NGS Pipeline Launcher')
 parser.add_argument("-r", "--run", help="Path to the run directory. Must contain the PipelineWorksheet.xlsx.", default = defaultSampleSheet)
 parser.add_argument("-e", "--email", help="Notify status alerts by e-mail.", default = None)
+parser.add_argument("-f", "--force", help="Will delete the target directories without notification.", default = False)
 args = parser.parse_args()
 
-sampleSheetPath = args.run
-email = None if args.email == "None" else args.email
-
-runLauncher(sampleSheetPath, email)
+runLauncher(args.run, None if args.email == "None" else args.email, args.force)
