@@ -153,7 +153,7 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
                         raise Exception(f"Directory for '{group}' at '{directories[group]}' already exists and is not empty. Please choose empty or non-existing directory.")
                     else:
                         print(f"{currentTime()} | Removing dir: {directories[group]}.", flush=True)
-                        shutil.rmtree(directories[group])
+                        shutil.rmtree(directories[group], ignore_errors=True)
 
     # time.sleep(15*60) # Extra wait to make sure everything is done
 
@@ -321,7 +321,7 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
 parser = argparse.ArgumentParser(description='APL NGS Pipeline Launcher')
 parser.add_argument("-r", "--run", help="Path to the run directory. Must contain the PipelineWorksheet.xlsx.", default = defaultSampleSheet)
 parser.add_argument("-e", "--email", help="Notify status alerts by e-mail.", default = None)
-parser.add_argument("-f", "--force", help="Will delete the target directories without notification.", default = False)
+parser.add_argument("-f", "--force", help="Will delete the target directories without notification.", action='store_true')
 args = parser.parse_args()
 
 runLauncher(args.run, None if args.email == "None" else args.email, args.force)
