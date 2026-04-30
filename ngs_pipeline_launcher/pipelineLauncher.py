@@ -87,33 +87,36 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
 
     print(f"{currentTime()} | Checking for sequencing completion file in '{sampleSheetPath}'...", flush=True)
 
-    # Check if run is finished sequencing
-    while not (completionFiles := isRunCompleted(sampleSheetPath)):#isRunCompleted(basePath, header["Seq_Type"]):
-        print(f"{currentTime()} |    Waiting...", flush=True)
-        time.sleep(15)#*60)
-
-    print(f"{currentTime()} | Found {completionFiles}.", flush=True)
-
     # Read data from the sample sheet
     print(f"{currentTime()} | Checking for pipeline worksheet...", flush=True)
     with tempfile.NamedTemporaryFile() as sampleSheet:
-        os.chdir(sampleSheetPath) # TODO: This is gross
-        file = st.findFiles2(os.path.join(sampleSheetPath,"**","*PipelineWorksheet*"))
-        if not isinstance(file, list): file = [file]
-        file = [ f for f in file if "~$" not in f ] # Handle temporary file if open in 
-        if (len(file) == 0):
-            raise Exception(f"No pipeline worksheet found. Please check '{sampleSheetPath}'.")
-        if (len(file) > 1):
-            raise Exception(f"More than one pipeline worksheet identified. Found:\n{file}.")
-        
-        print(f"{currentTime()} | Found {file}.", flush=True)
+        #os.chdir(sampleSheetPath) # TODO: This is gross
 
-        file = file[0]
+        # Check for either specific file or directory to search
+        if os.path.isfile(sampleSheetPath):
+            if os.path.exists(sampleSheetPath):
+                file = sampleSheetPath  
+            else:
+                raise Exception(f"Pipeline worksheet not found. Please check '{sampleSheetPath}'.")
+        elif os.path.isdir(sampleSheetPath):
+            file = st.findFiles2(os.path.join(sampleSheetPath,"**","*PipelineWorksheet*"))
+            if not isinstance(file, list): file = [file]
+            file = [ f for f in file if "~$" not in f ] # Handle temporary file if open in                
+            if (len(file) == 0):
+                raise Exception(f"No pipeline worksheet found. Please check '{sampleSheetPath}'.")
+            if (len(file) > 1):
+                raise Exception(f"More than one pipeline worksheet identified. Found:\n{file}.")
+            file = file[0]
+            print(f"{currentTime()} | Found {file}.", flush=True)
+        
         if pathlib.Path(file).suffix.lower() == ".xlsx":
             df = pd.read_excel(file)
-            sampleSheetPath = sampleSheet.name
+            sampleSheetPath = sampleSheet.name # Save the dataframe as the tempfile.csv 
             df.to_csv(sampleSheetPath, index=False)
-        else: sampleSheetPath = file
+        elif pathlib.Path(file).suffix.lower() == ".csv": 
+            sampleSheetPath = file
+        else:
+            raise Exception(f"Pipeline worksheet must have the file type of '.xlsx' or '.csv'. Please check '{file}'.")
 
         header = getSampleSheetDataVars(sampleSheetPath, "Header") 
         runName = header["Run_Name"].strip()
@@ -125,6 +128,13 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
         directories = getSampleSheetDataVars(sampleSheetPath, "Directories")   
         directories = {group: os.path.join(dir,runName) for group, dir in directories.items()} # Adds path name to end of directory path
         allSamples = getSampleSheetDataFrame(sampleSheetPath, "Samples")
+
+    # Check if run is finished sequencing
+    while not (completionFiles := isRunCompleted(runDir)):#isRunCompleted(basePath, header["Seq_Type"]):
+        print(f"{currentTime()} |    Waiting...", flush=True)
+        time.sleep(15)#*60)
+
+    print(f"{currentTime()} | Found {completionFiles}.", flush=True)
 
     # Check for appropriate inputs
     if seqType not in ["nanopore","illumina"]:
