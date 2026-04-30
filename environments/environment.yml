@@ -2,7 +2,6 @@ name: ngs-pipeline-launcher
 channels:
   - conda-forge
   - bioconda
-  - defaults
 dependencies:
   - python=3.10
   - numpy=1.24.2
