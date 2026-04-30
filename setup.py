@@ -13,11 +13,11 @@ setup(
     zip_safe=False,
     install_requires=[
         'matplotlib',
-        'numpy=1.24.2',
-        'pandas=2.0.0',
+        'numpy',
+        'pandas',
         'openpyxl',
         'pip',
-        'setuptools',
+        'build',
         'search-tools @ git+ssh://git@github.com/provlab-bioinfo/search-tools'
     ],
     python_requires='>=3.10, <4'
