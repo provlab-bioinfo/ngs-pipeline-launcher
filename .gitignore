@@ -1,6 +1,7 @@
 /results
 /data
 /.vscode
+/.nextflow
 test.bash
 
 # From https://github.com/github/gitignore/blob/main/Python.gitignore
