@@ -121,7 +121,6 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
         header = getSampleSheetDataVars(sampleSheetPath, "Header") 
         runName = header["Run_Name"].strip()
         runDir = header["Run_Dir"].strip()
-        baseCall = header["Base_Call"].lower().strip()
             
         pipelines = getSampleSheetDataVars(sampleSheetPath, "Pipelines")
         directories = getSampleSheetDataVars(sampleSheetPath, "Directories")   
@@ -136,9 +135,6 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
     print(f"{currentTime()} | Found {completionFiles}.", flush=True)
 
     # Check for appropriate inputs
-    if baseCall not in ["yes","no"]:
-        raise Exception(f"Base_Call must be either 'Yes' or 'No' in the pipeline worksheet. Found: {header['Base_Call']}")
-
     if not os.path.isdir(runDir):
         raise Exception(f"Run directory does not exist. Found: {header['Run_Dir']}")
 
@@ -285,12 +281,10 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
             parentDir = os.path.dirname(directories[group].rstrip("/")) + "/"
             commands.append("\ncd {}\n".format(parentDir))
 
-            basecall = 1 if baseCall == "yes" else 2
-
             baseDir = os.path.basename(directories[group].strip("/"))
 
             # Run pipeline
-            command = f"python {pipelines[group]} -d {parentDir} -r {baseDir} -b {basecall}"
+            command = f"python {pipelines[group]} -d {parentDir} -r {baseDir} -b 2"
             if (group == "ncov-ww"): command = command + " -f"
 
             if len(posCtrls): command = f"{command} -p {posCtrls}"
