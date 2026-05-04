@@ -121,7 +121,6 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
         header = getSampleSheetDataVars(sampleSheetPath, "Header") 
         runName = header["Run_Name"].strip()
         runDir = header["Run_Dir"].strip()
-        seqType = header["Seq_Type"].lower().strip()
         baseCall = header["Base_Call"].lower().strip()
             
         pipelines = getSampleSheetDataVars(sampleSheetPath, "Pipelines")
@@ -137,9 +136,6 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
     print(f"{currentTime()} | Found {completionFiles}.", flush=True)
 
     # Check for appropriate inputs
-    if seqType not in ["nanopore","illumina"]:
-        raise Exception(f"Seq_Type must be either 'Nanopore' or 'Illumina' in the pipeline worksheet. Found: {header['Seq_Type']}")
-
     if baseCall not in ["yes","no"]:
         raise Exception(f"Base_Call must be either 'Yes' or 'No' in the pipeline worksheet. Found: {header['Base_Call']}")
 
@@ -171,10 +167,12 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
     allSamples[samplePosCol] = allSamples[barcodeCol]
     allBarcodes = range(1,1000)
 
-    if (seqType == "nanopore"):
-        label = lambda x: f"_barcode{x}" if int(x) > 10 else f"_barcode0{x}"
-    elif (seqType == "illumina"):
+    if ("_I_" in runName):
         label = lambda x: f"{x}_S"
+    elif ("_N_" in runName):
+        label = lambda x: f"_barcode{x}" if int(x) > 10 else f"_barcode0{x}"
+    else:
+        label = lambda x: f"{x}"
         
     allSamples[barcodeCol] = allSamples[barcodeCol].apply(label)
     allBarcodes = [label(barcode) for barcode in allBarcodes]
@@ -277,10 +275,10 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
         commands = []
         if (group == "ncov" or group == "ncov-ww"):
             # Do symlinks
-            if seqType == "nanopore":
+            if ("_N_" in runName):
                 commands.append(symlink("fast5_pass","fast5"))   
                 commands.append(symlink("fastq_pass","gup_out"))   
-            elif seqType == "illumina":
+            elif ("_I_" in runName):
                 commands.append(symlink("Fastq","fastq")) 
 
             # Go to parent dir
