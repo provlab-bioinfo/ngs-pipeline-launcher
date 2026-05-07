@@ -18,7 +18,7 @@ setup(
         'openpyxl',
         'pip',
         'build',
-        'search-tools @ git+https://github.com/provlab-bioinfo/search-tools'
+        'search_tools @ git+https://github.com/provlab-bioinfo/search-tools'
     ],
     python_requires='>=3.10, <4'
 )
