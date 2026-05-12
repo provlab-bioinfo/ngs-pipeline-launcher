@@ -1,7 +1,7 @@
 import os, shutil, time, argparse, glob, itertools
 from datetime import datetime
 from shutil import copytree, ignore_patterns
-from .runStatus import *
+from runStatus import *
 
 parser = argparse.ArgumentParser(description='APL NGS File mover')
 parser.add_argument("-p", "--path", help="Path to the sequencing output folder")
