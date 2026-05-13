@@ -196,7 +196,7 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
         excludeSamples = excludeSamples + ["fail","skip","unclassified","Undetermined","~$","pod5"]
         excludeSamples = "|".join(excludeSamples)
 
-        pathfilter = ["**/*fastq.gz","**/report_*.json","**/*PipelineWorksheet*"]  
+        pathfilter = ["**/*fastq.gz","**/*fast5","**/report_*.json","**/*PipelineWorksheet*"]  
 
         fileCount = 0    
 
