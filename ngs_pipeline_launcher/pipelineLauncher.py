@@ -1,7 +1,6 @@
-import pandas as pd, os, search_tools as st, shutil, io, time, subprocess, argparse, tempfile, pathlib, glob, re, glob, re, itertools
+import pandas as pd, os, search_tools as st, shutil, io, time, subprocess, argparse, tempfile, pathlib, glob, re, glob, re
 from configparser import ConfigParser
 import openpyxl as xl
-from datetime import datetime
 from runStatus import *
 pd.options.mode.chained_assignment = None  # default='warn'
 os.chdir(os.path.dirname(__file__))
