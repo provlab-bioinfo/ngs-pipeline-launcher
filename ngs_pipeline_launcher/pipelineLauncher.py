@@ -131,9 +131,11 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
 
     # Check if run is finished sequencing
     printLog(f"Checking for sequencing completion file...")
+    sleep_time = 60
     while not (completionFiles := isRunCompleted(runDir)):#isRunCompleted(basePath, header["Seq_Type"]):
-        print(f"{currentTime()} |    Waiting...", flush=True)
-        time.sleep(15)#*60)
+        printLog(f"   Waiting...")
+        time.sleep(sleep_time)#*60)
+        sleep_time = min(3600, sleep_time*2)
 
     printLog(f"   Found {completionFiles[0]}.")
 
