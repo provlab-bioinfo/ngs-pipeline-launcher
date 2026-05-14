@@ -81,16 +81,16 @@ def generateSLURM(SLURM:str, jobName: str, runName: str, outputDir: str, command
     file.close()
     return(outFile)
 
+def printLog (message: str) :
+    print (f"{currentTime()} | {message}", flush=True)
+
 def runLauncher(sampleSheetPath: str, email: str = None, force = False):
 
-    print(f"{currentTime()} | Pipeline launcher initialized")
-
-    print(f"{currentTime()} | Checking for sequencing completion file in '{sampleSheetPath}'...", flush=True)
+    printLog(f"Pipeline launcher initialized in '{sampleSheetPath}'...")
 
     # Read data from the sample sheet
-    print(f"{currentTime()} | Checking for pipeline worksheet...", flush=True)
+    printLog(f"Checking for pipeline worksheet...")
     with tempfile.NamedTemporaryFile() as sampleSheet:
-        #os.chdir(sampleSheetPath) # TODO: This is gross
 
         # Check for either specific file or directory to search
         if os.path.isfile(sampleSheetPath):
@@ -107,7 +107,7 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
             if (len(file) > 1):
                 raise Exception(f"More than one pipeline worksheet identified. Found:\n{file}.")
             file = file[0]
-            print(f"{currentTime()} | Found {file}.", flush=True)
+            printLog(f"   Found {file}.")
         
         if pathlib.Path(file).suffix.lower() == ".xlsx":
             df = pd.read_excel(file)
@@ -127,12 +127,15 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
         directories = {group: os.path.join(dir,runName) for group, dir in directories.items()} # Adds path name to end of directory path
         allSamples = getSampleSheetDataFrame(sampleSheetPath, "Samples")
 
+    
+
     # Check if run is finished sequencing
+    printLog(f"Checking for sequencing completion file...")
     while not (completionFiles := isRunCompleted(runDir)):#isRunCompleted(basePath, header["Seq_Type"]):
         print(f"{currentTime()} |    Waiting...", flush=True)
         time.sleep(15)#*60)
 
-    print(f"{currentTime()} | Found {completionFiles}.", flush=True)
+    printLog(f"   Found {completionFiles[0]}.")
 
     # Check for appropriate inputs
     if not os.path.isdir(runDir):
@@ -154,7 +157,7 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
                     if not force:
                         raise Exception(f"Directory for '{group}' at '{directories[group]}' already exists and is not empty. Please choose empty or non-existing directory.")
                     else:
-                        print(f"{currentTime()} | Removing dir: {directories[group]}.", flush=True)
+                        printLog(f"Removing dir: {directories[group]}.")
                         shutil.rmtree(directories[group], ignore_errors=True)
 
     # time.sleep(15*60) # Extra wait to make sure everything is done
@@ -174,6 +177,8 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
     allBarcodes = [label(barcode) for barcode in allBarcodes]
 
     # Split sequencing run into respective folders
+    printLog(f"Locating for files to move...")
+
     for group in groups:
         if group.lower() == "ignore": continue
 
@@ -182,16 +187,16 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
         ignore = False
         try: ignore = outDir.lower() == "ignore"
         except KeyError: ignore = True
-        if (ignore): print(f"{currentTime()} |    Ignoring file copy for {group}"); continue
+        if (ignore): printLog(f"   Ignoring file copy for {group}"); continue
 
         # Move files
-        print(f"{currentTime()} |    Moving {group} to {outDir}", flush=True)
+        printLog(f"   Moving {group} to {outDir}")
         includeSamples = allSamples.loc[allSamples['Sample_Group'] == group][barcodeCol].values.tolist()
         includeSamples = st.sortDigitSuffix(list(includeSamples))
-        print(f"{currentTime()} |       Extracting barcodes: " + ", ".join(st.collapseNumbers(includeSamples)), flush=True)
+        printLog(f"      Extracting barcodes: " + ", ".join(st.collapseNumbers(includeSamples)))
         excludeSamples = list(set(allBarcodes) - set(includeSamples))
         excludeSamples = st.sortDigitSuffix(list(excludeSamples))
-        # print("      Excluding barcodes: " + ", ".join(st.collapseNumbers(excludeSamples)), flush=True)
+        # print("      Excluding barcodes: " + ", ".join(st.collapseNumbers(excludeSamples)))
         excludeSamples = [f"\/{sample}|\/.*_{sample}|\/.*-{sample}" for sample in excludeSamples]
         excludeSamples = excludeSamples + ["fail","skip","unclassified","Undetermined","~$","pod5"]
         excludeSamples = "|".join(excludeSamples)
@@ -212,12 +217,12 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
                     else:
                         shutil.copy(src, dst)
                     fileCount = fileCount + 1
-        print(f"{currentTime()} |       Copied files: {fileCount}", flush=True)
+        printLog(f"      Copied files: {fileCount}")
         
         #subsetWorksheet(file, group, os.path.join(outDir,os.path.basename(file)))
         
     # Setup pipeline
-    print(f"{currentTime()} | Configuring pipelines...", flush=True)
+    printLog(f"Configuring pipelines...")
     for group in groups:
         if group.lower() == "ignore": continue
 
@@ -225,14 +230,14 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
         ignore = False
         try: ignore = pipelines[group].lower() == "ignore"
         except KeyError: ignore = True
-        if (ignore): print(f"{currentTime()} |    Ignoring pipeline for {group}"); continue
+        if (ignore): printLog(f"   Ignoring pipeline for {group}"); continue
 
         # Check output dir exists
         if not os.path.exists(directories[group]):
-            print(f"{currentTime()} |    Output directory does not exist for {group}. Skipping.")
+            printLog(f"   Output directory does not exist for {group}. Skipping.")
             continue
 
-        print(f"{currentTime()} |    Generating SLURM for {group}...", flush=True)
+        printLog(f"   Generating SLURM for {group}...")
 
         # Parse controls
         samples = allSamples.loc[allSamples['Sample_Group'] == group]
@@ -304,7 +309,7 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
             commands.append(f"bash {pipelines[group]} {directories[group]}")
 
         else:
-            print(f"{currentTime()} |    No pipeline found for {group}.", flush=True)
+            printLog(f"   No pipeline found for {group}.")
             continue
 
         # Generate the SLURM file
@@ -315,9 +320,9 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
                                 command = "\n".join(commands), 
                                 email = email)
         out = subprocess.run(["sbatch",SLURMfile,"-v"], capture_output = True, text = True)
-        print(f"{currentTime()} |       {out.stdout}", flush=True)
+        printLog(f"      {out.stdout}")
 
-    print(f"{currentTime()} | All files transferred and pipeline initialized\n", flush=True)
+    printLog(f"All files transferred and pipeline initialized\n")
 
 # Import the arguments
 parser = argparse.ArgumentParser(description='APL NGS Pipeline Launcher')
