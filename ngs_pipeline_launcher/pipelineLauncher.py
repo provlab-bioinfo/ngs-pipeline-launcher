@@ -81,10 +81,17 @@ def generateSLURM(SLURM:str, jobName: str, runName: str, outputDir: str, command
     return(outFile)
 
 def printLog (message: str) :
+    """Prints a message formatted as "[Current time] | [Message]
+    :param message: The message to print
+    """
     print (f"{currentTime()} | {message}", flush=True)
 
 def runLauncher(sampleSheetPath: str, email: str = None, force = False):
-
+    """Generates a SLURM command file based on a template
+    :param sampleSheetPath: The path to the directory containing the sample sheet. The file must contain the sub-string 'PipelineWorksheet'.
+    :param email: If desired, SLURM will send an e-mail on job status. Default = None
+    :param force: Whether to delete the target directories, if they exist. Should only used while developing/debugging. Default = False
+    """
     printLog(f"Pipeline launcher initialized in '{sampleSheetPath}'...")
 
     # Read data from the sample sheet
