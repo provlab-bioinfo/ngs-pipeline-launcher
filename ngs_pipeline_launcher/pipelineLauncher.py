@@ -7,9 +7,10 @@ os.chdir(os.path.dirname(__file__))
 
 defaultSampleSheet = "./"
 SLURM = "/nfs/APL_Genomics/apps/production/ngs-pipeline-launcher/templates/SLURM_template.batch"
-barcodeCol = "Barcode"
-samplePosCol = "Sample_Pos"
-symlinkFQ = False
+barcodeCol = "Barcode" # The column in the Pipeline Worksheet [Samples] section that contains the barcode
+samplePosCol = "Sample_Pos" # Generated column in the Pipeline Worksheet [Samples] section that contains the sample name (e.g., "27_S" for illumina)
+symlinkFQ = False # Should fastq's be symlinked?
+pathfilter = ["**/*fastq.gz","**/*fast5","**/report_*.json","**/*PipelineWorksheet*"]  # Which files should be transferred?
 
 def getSampleSheetDataVars(path:str, section:str):
     """Generates a dictionary from the first two columns of a [HEADER] section
@@ -99,31 +100,33 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
     with tempfile.NamedTemporaryFile() as sampleSheet:
 
         # Check for either specific file or directory to search
-        if os.path.isfile(sampleSheetPath):
+        if os.path.isfile(sampleSheetPath): # If file
             if os.path.exists(sampleSheetPath):
                 file = sampleSheetPath  
             else:
                 raise Exception(f"Pipeline worksheet not found. Please check '{sampleSheetPath}'.")
-        elif os.path.isdir(sampleSheetPath):
+        elif os.path.isdir(sampleSheetPath): # If directory, then search for worksheet
             file = st.findFiles2(os.path.join(sampleSheetPath,"**","*PipelineWorksheet*"))
             if not isinstance(file, list): file = [file]
-            file = [ f for f in file if "~$" not in f ] # Handle temporary file if open in                
-            if (len(file) == 0):
+            file = [ f for f in file if "~$" not in f ] # Exclude temp files (e.g., if open in Excel)
+            if (len(file) == 0): # If no files found
                 raise Exception(f"No pipeline worksheet found. Please check '{sampleSheetPath}'.")
-            if (len(file) > 1):
+            if (len(file) > 1): # If more than 1 file is found
                 raise Exception(f"More than one pipeline worksheet identified. Found:\n{file}.")
             file = file[0]
             printLog(f"   Found {file}.")
         
+        # Convert to CSV
         if pathlib.Path(file).suffix.lower() == ".xlsx":
             df = pd.read_excel(file)
-            sampleSheetPath = sampleSheet.name # Save the dataframe as the tempfile.csv 
+            sampleSheetPath = sampleSheet.name # Export df to the tempfile
             df.to_csv(sampleSheetPath, index=False)
         elif pathlib.Path(file).suffix.lower() == ".csv": 
             sampleSheetPath = file
         else:
             raise Exception(f"Pipeline worksheet must have the file type of '.xlsx' or '.csv'. Please check '{file}'.")
 
+        # Get the variables for the run
         header = getSampleSheetDataVars(sampleSheetPath, "Header") 
         runName = header["Run_Name"].strip()
         runDir = header["Run_Dir"].strip()
@@ -133,21 +136,19 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
         directories = {group: os.path.join(dir,runName) for group, dir in directories.items()} # Adds path name to end of directory path
         allSamples = getSampleSheetDataFrame(sampleSheetPath, "Samples")
 
-    
-
     # Check if run is finished sequencing
     printLog(f"Checking for sequencing completion file...")
     sleep_time = 60
     while not (completionFiles := isRunCompleted(runDir)):#isRunCompleted(basePath, header["Seq_Type"]):
         printLog(f"   Waiting...")
-        time.sleep(sleep_time)#*60)
+        time.sleep(sleep_time)
         sleep_time = min(3600, sleep_time*2)
 
     printLog(f"   Found {completionFiles[0]}.")
 
     # Check for appropriate inputs
-    if not os.path.isdir(runDir):
-        raise Exception(f"Run directory does not exist. Found: {header['Run_Dir']}")
+    if not os.path.isdir(runDir): # Check if run exists
+        raise Exception(f"Run directory does not exist at '{header['Run_Dir']}'")
 
     groups = sorted(set(allSamples["Sample_Group"].dropna().values))
     for group in groups:
@@ -155,11 +156,11 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
         if group == "ignore":
             continue
         
-        if not os.path.exists(pipelines[group]):
+        if not os.path.exists(pipelines[group]): # Check if pipeline exists
             if (pipelines[group] != "ignore"):
                 raise Exception(f"Pipeline for '{group}' does not exist at '{pipelines[group]}'")
 
-        if os.path.exists(directories[group]):
+        if os.path.exists(directories[group]): # Check if directories exist
             if (directories[group] != "ignore"):
                 if (len(directories[group]) != 0):
                     if not force:
@@ -172,7 +173,7 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
 
     # Add barcodes to the respective sequencing type
     allSamples[samplePosCol] = allSamples[barcodeCol]
-    allBarcodes = range(1,1000)
+    allBarcodes = range(1,1000) # 1000 is arbitrary. Only needs to be higher than the max barcode value.
 
     if ("_I_" in runName):
         label = lambda x: f"{x}_S"
@@ -197,11 +198,13 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
         except KeyError: ignore = True
         if (ignore): printLog(f"   Ignoring file copy for {group}"); continue
 
-        # Move files
+        # Get barcodes to include
         printLog(f"   Moving {group} to {outDir}")
         includeSamples = allSamples.loc[allSamples['Sample_Group'] == group][barcodeCol].values.tolist()
         includeSamples = st.sortDigitSuffix(list(includeSamples))
         printLog(f"      Extracting barcodes: " + ", ".join(st.collapseNumbers(includeSamples)))
+
+        # Get barcodes to exclude
         excludeSamples = list(set(allBarcodes) - set(includeSamples))
         excludeSamples = st.sortDigitSuffix(list(excludeSamples))
         # print("      Excluding barcodes: " + ", ".join(st.collapseNumbers(excludeSamples)))
@@ -209,18 +212,17 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
         excludeSamples = excludeSamples + ["fail","skip","unclassified","Undetermined","~$","pod5"]
         excludeSamples = "|".join(excludeSamples)
 
-        pathfilter = ["**/*fastq.gz","**/*fast5","**/report_*.json","**/*PipelineWorksheet*"]  
-
+        # Move files
         fileCount = 0    
 
         for f in pathfilter:
             for p in glob.glob(f, recursive=True, root_dir=runDir):
-                if os.path.isfile(os.path.join(runDir, p)) and not re.search(excludeSamples, p):   
-                    p_dest = p if (group != "PulseNet") else os.path.basename(p)
+                if os.path.isfile(os.path.join(runDir, p)) and not re.search(excludeSamples, p):   # Check if exists and isn't in the sample filter
+                    p_dest = p if (group != "PulseNet") else os.path.basename(p) # Put in base of target directory if from Pulsenet. TODO: Do this in the pipeline script
                     os.makedirs(os.path.join(outDir, os.path.dirname(p_dest)), exist_ok=True)
                     src = os.path.join(runDir, p)
                     dst = os.path.join(outDir, p_dest)
-                    if symlinkFQ and pathlib.Path(p).suffix.lower() in [".fastq", ".fq"]:
+                    if symlinkFQ and pathlib.Path(p).suffix.lower() in [".fastq", ".fq"]: # Symlink or not
                         os.symlink(src, dst)
                     else:
                         shutil.copy(src, dst)
@@ -282,7 +284,7 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
             return f"ln -s {file} {link}"
 
         commands = []
-        if (group == "ncov" or group == "ncov-ww"):
+        if (group == "ncov" or group == "ncov-ww"): #TODO: Put this in pipeline script
             # Do symlinks
             if ("_N_" in runName):
                 commands.append(symlink("fast5_pass","fast5"))   
@@ -307,13 +309,13 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
         elif(group == "ncov-R10"):
             commands.append(f"bash {pipelines[group]} {directories[group]} {negCtrls}")
 
-        elif (group == "PulseNet"):
+        elif (group == "PulseNet"): # TODO: Convert to own pipeline script
             parentDir = os.path.dirname(directories[group].rstrip("/")) + "/"
             baseDir = os.path.basename(directories[group].strip("/"))
             commands.append("conda activate pulsenet_analysis_pipeline")               
             commands.append(f"python {pipelines[group]} -d {parentDir} -r {baseDir}")
 
-        elif (group != ""):
+        elif (group != ""): # TODO: Pass the sample sheet to the pipelines instead of above code
             commands.append(f"bash {pipelines[group]} {directories[group]}")
 
         else:
@@ -327,7 +329,7 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
                                 outputDir = directories[group], 
                                 command = "\n".join(commands), 
                                 email = email)
-        out = subprocess.run(["sbatch",SLURMfile,"-v"], capture_output = True, text = True)
+        out = subprocess.run(["sbatch",SLURMfile,"-v"], capture_output = True, text = True) # Launch the SLURM file
         printLog(f"      {out.stdout}")
 
     printLog(f"All files transferred and pipeline initialized\n")
