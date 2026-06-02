@@ -169,10 +169,8 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
 
     if ("_I_" in runName):
         label = lambda x: f"{x}_S"
-    elif ("_N_" in runName):
-        label = lambda x: f"_barcode{x}" if int(x) > 10 else f"_barcode0{x}"
     else:
-        label = lambda x: f"{x}"
+        label = lambda x: f"barcode{x}" if int(x) >= 10 else f"barcode0{x}"
         
     allSamples[barcodeCol] = allSamples[barcodeCol].apply(label)
     allBarcodes = [label(barcode) for barcode in allBarcodes]
