@@ -284,11 +284,11 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
         commands = []
         if (group == "ncov" or group == "ncov-ww"): #TODO: Put this in pipeline script
             # Do symlinks
-            if ("_N_" in runName):
+            if ("_I_" in runName):
+                commands.append(symlink("Fastq","fastq")) 
+            else:
                 commands.append(symlink("fast5_pass","fast5"))   
                 commands.append(symlink("fastq_pass","gup_out"))   
-            elif ("_I_" in runName):
-                commands.append(symlink("Fastq","fastq")) 
 
             # Go to parent dir
             parentDir = os.path.dirname(directories[group].rstrip("/")) + "/"
