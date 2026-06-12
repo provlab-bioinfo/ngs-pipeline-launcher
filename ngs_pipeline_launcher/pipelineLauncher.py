@@ -114,7 +114,8 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
             if (len(file) > 1): # If more than 1 file is found
                 raise Exception(f"More than one pipeline worksheet identified. Found:\n{file}.")
             file = file[0]
-            printLog(f"   Found {file}.")
+        
+        printLog(f"   Found '{file}'")
         
         # Convert to CSV
         if pathlib.Path(file).suffix.lower() == ".xlsx":
@@ -144,7 +145,7 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
         time.sleep(sleep_time)
         sleep_time = min(3600, sleep_time*2)
 
-    printLog(f"   Found {completionFiles[0]}.")
+    printLog(f"   Found '{completionFiles[0]}'")
 
     # Check for appropriate inputs
     if not os.path.isdir(runDir): # Check if run exists
@@ -197,7 +198,7 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
         if (ignore): printLog(f"   Ignoring file copy for {group}"); continue
 
         # Get barcodes to include
-        printLog(f"   Moving {group} to {outDir}")
+        printLog(f"   Moving {group} to '{outDir}'")
         includeSamples = allSamples.loc[allSamples['Sample_Group'] == group][barcodeCol].values.tolist()
         includeSamples = st.sortDigitSuffix(list(includeSamples))
         printLog(f"      Extracting barcodes: " + ", ".join(st.collapseNumbers(includeSamples)))
@@ -305,7 +306,10 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
             commands.append(command)
 
         elif(group == "ncov-R10"):
-            commands.append(f"bash {pipelines[group]} {directories[group]} {negCtrls}")
+            command = f"bash {pipelines[group]} -r {directories[group]}"
+            if len(posCtrls): command = f"{command} -p '{posCtrls}'"
+            if len(negCtrls): command = f"{command} -c {negCtrls}"
+            commands.append(command)
 
         elif (group == "PulseNet"): # TODO: Convert to own pipeline script
             parentDir = os.path.dirname(directories[group].rstrip("/")) + "/"
