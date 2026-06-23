@@ -93,7 +93,7 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
     :param email: If desired, SLURM will send an e-mail on job status. Default = None
     :param force: Whether to delete the target directories, if they exist. Should only used while developing/debugging. Default = False
     """
-    printLog(f"Pipeline launcher initialized in '{sampleSheetPath}'...")
+    printLog(f"Pipeline launcher initialized for '{sampleSheetPath}'...")
 
     # Read data from the sample sheet
     printLog(f"Checking for pipeline worksheet...")
@@ -101,19 +101,18 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
 
         # Check for either specific file or directory to search
         if os.path.isfile(sampleSheetPath): # If file
-            if os.path.exists(sampleSheetPath):
-                file = sampleSheetPath  
-            else:
-                raise Exception(f"Pipeline worksheet not found. Please check '{sampleSheetPath}'.")
+            file = sampleSheetPath  
         elif os.path.isdir(sampleSheetPath): # If directory, then search for worksheet
             file = st.findFiles2(os.path.join(sampleSheetPath,"**","*PipelineWorksheet*"))
             if not isinstance(file, list): file = [file]
             file = [ f for f in file if "~$" not in f ] # Exclude temp files (e.g., if open in Excel)
             if (len(file) == 0): # If no files found
-                raise Exception(f"No pipeline worksheet found. Please check '{sampleSheetPath}'.")
+                raise Exception(f"No pipeline worksheet found. Filename must include 'PipelineWorksheet'. Please check '{sampleSheetPath}'.")
             if (len(file) > 1): # If more than 1 file is found
-                raise Exception(f"More than one pipeline worksheet identified. Found:\n{file}.")
+                raise Exception(f"More than one pipeline worksheet identified. Only 1 filename can contain 'PipelineWorksheet'. Found:\n{file}.")
             file = file[0]
+        else:
+            raise Exception(f"Pipeline worksheet not found. Filename must contain 'PipelineWorksheet'. Please check '{sampleSheetPath}'.")
         
         printLog(f"   Found '{file}'")
         
@@ -139,7 +138,7 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
 
     # Check if run is finished sequencing
     if not os.path.isdir(runDir): # Check if run exists
-        raise Exception(f"Run directory does not exist at '{header['Run_Dir']}'")
+        raise Exception(f"Run directory does not exist at '{header['Run_Dir']}'.")
 
     printLog(f"Checking for sequencing completion file...")
     sleep_time = 60

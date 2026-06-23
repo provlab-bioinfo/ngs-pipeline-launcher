@@ -17,5 +17,3 @@
 
 eval "$(conda shell.bash hook)"
 conda activate
-
-cd [RUN_DIR]
