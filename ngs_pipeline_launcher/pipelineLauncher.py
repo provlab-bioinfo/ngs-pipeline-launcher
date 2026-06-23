@@ -138,6 +138,9 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
         allSamples = getSampleSheetDataFrame(sampleSheetPath, "Samples")
 
     # Check if run is finished sequencing
+    if not os.path.isdir(runDir): # Check if run exists
+        raise Exception(f"Run directory does not exist at '{header['Run_Dir']}'")
+
     printLog(f"Checking for sequencing completion file...")
     sleep_time = 60
     while not (completionFiles := isRunCompleted(runDir)):#isRunCompleted(basePath, header["Seq_Type"]):
@@ -148,9 +151,6 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
     printLog(f"   Found '{completionFiles[0]}'")
 
     # Check for appropriate inputs
-    if not os.path.isdir(runDir): # Check if run exists
-        raise Exception(f"Run directory does not exist at '{header['Run_Dir']}'")
-
     groups = sorted(set(allSamples["Sample_Group"].dropna().values))
     for group in groups:
 
