@@ -147,7 +147,14 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
         time.sleep(sleep_time)
         sleep_time = min(3600, sleep_time*2)
 
-    printLog(f"   Found '{completionFiles[0]}'")
+    if any(".xml" in i for i in completionFiles): # "CompletedJobInfo.xml","RunCompletionStatus.xml"
+        platform = "illumina"
+    elif any(".txt" in i for i in completionFiles): # "final_summary_*.txt"
+        platform = "nanopore"
+    else:
+        raise Exception(f"Cannot detect which run type (Illumina or ONT). Should only have either one of 'CompletedJobInfo.xml' and 'RunCompletionStatus.xml'for Illumina, or 'final_summary_*' for ONT in '{completionFiles}'")
+
+    printLog(f"   Found '{completionFiles}'")
 
     # Check for appropriate inputs
     groups = sorted(set(allSamples["Sample_Group"].dropna().values))
@@ -175,9 +182,9 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
     allSamples[samplePosCol] = allSamples[barcodeCol]
     allBarcodes = range(1,1000) # 1000 is arbitrary. Only needs to be higher than the max barcode value.
 
-    if ("_I_" in runName):
+    if platform == "illumina":
         label = lambda x: f"{x}_S"
-    else:
+    elif platform == "nanopore":
         label = lambda x: f"barcode{x}" if int(x) >= 10 else f"barcode0{x}"
         
     allSamples[barcodeCol] = allSamples[barcodeCol].apply(label)
@@ -284,9 +291,9 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
         commands = []
         if (group == "ncov" or group == "ncov-ww"): #TODO: Put this in pipeline script
             # Do symlinks
-            if ("_I_" in runName):
+            if platform == "illumina":
                 commands.append(symlink("Fastq","fastq")) 
-            else:
+            elif platform == "nanopore":
                 commands.append(symlink("fast5_pass","fast5"))   
                 commands.append(symlink("fastq_pass","gup_out"))   
 
