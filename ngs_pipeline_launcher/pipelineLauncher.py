@@ -324,7 +324,12 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
             commands.append(f"python {pipelines[group]} -d {parentDir} -r {baseDir}")
 
         elif (group != ""): # TODO: Pass the sample sheet to the pipelines instead of above code
-            commands.append(f"bash {pipelines[group]} {directories[group]}")
+            if directories[group].lower().endswith((".py")):
+                commands.append(f"python {pipelines[group]} {directories[group]}")
+            if directories[group].lower().endswith((".sh")):
+                commands.append(f"bash {pipelines[group]} {directories[group]}")
+            else: 
+                raise Exception(f"Error: Unsure how to start generic pipeline '{directories[group]}'. This currently only supports '.py' and '.sh' scripts.")
 
         else:
             printLog(f"   No pipeline found for {group}.")
