@@ -87,11 +87,11 @@ def printLog (message: str) :
     """
     print (f"{currentTime()} | {message}", flush=True)
 
-def runLauncher(sampleSheetPath: str, email: str = None, force = False):
+def runLauncher(sampleSheetPath: str, email: str = None, if_exists = "error"):
     """Generates a SLURM command file based on a template
     :param sampleSheetPath: The path to the directory containing the sample sheet. The file must contain the sub-string 'PipelineWorksheet'.
     :param email: If desired, SLURM will send an e-mail on job status. Default = None
-    :param force: Whether to delete the target directories, if they exist. Should only used while developing/debugging. Default = False
+    :param if_exists: What to do if directory already exists? Options: 'error' out , 'ignore' the group, or 'delete' the existing directory. Default = 'error'.
     """
     printLog(f"Pipeline launcher initialized for '{sampleSheetPath}'...")
 
@@ -158,24 +158,39 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
 
     # Check for appropriate inputs
     groups = sorted(set(allSamples["Sample_Group"].dropna().values))
-    for group in groups:
+    for group in groups[:]:
 
+        # Remove group if name is 'ignore'
         if group == "ignore":
+            groups.remove(group)
+            continue
+
+        # Remove group if target directory is 'ignore'
+        ignore = False
+        try: ignore = directories[group].lower().strip() == "ignore"
+        except KeyError: ignore = True
+        if (ignore): 
+            printLog(f"   Ignoring file copy for {group}"); 
+            groups.remove(group)
             continue
         
-        if not os.path.exists(pipelines[group]): # Check if pipeline exists
+        # Check if the pipeline exists
+        if not os.path.exists(pipelines[group]):
             if (pipelines[group] != "ignore"):
                 raise Exception(f"Pipeline for '{group}' does not exist at '{pipelines[group]}'")
 
-        if os.path.exists(directories[group]): # Check if directories exist
+        # Check if the directories exist
+        if os.path.exists(directories[group]):
             if (directories[group] != "ignore"):
-                if (len(directories[group]) != 0):
-                    if not force:
+                if (len(directories[group]) != 0): # If directory already exists, check if_exists argument
+                    if if_exists == "error":
                         raise Exception(f"Directory for '{group}' at '{directories[group]}' already exists and is not empty. Please choose empty or non-existing directory.")
-                    else:
+                    if if_exists == "delete":
                         printLog(f"Removing dir: {directories[group]}.")
                         shutil.rmtree(directories[group], ignore_errors=True)
-
+                    if if_exists == "ignore":
+                        groups.remove(group) # Remove the group from further processing
+                    
     # time.sleep(15*60) # Extra wait to make sure everything is done
 
     # Add barcodes to the respective sequencing type
@@ -194,14 +209,9 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
     printLog(f"Locating for files to move...")
 
     for group in groups:
-        if group.lower() == "ignore": continue
 
         # Check for directory
         outDir = directories[group]
-        ignore = False
-        try: ignore = outDir.lower() == "ignore"
-        except KeyError: ignore = True
-        if (ignore): printLog(f"   Ignoring file copy for {group}"); continue
 
         # Get barcodes to include
         printLog(f"   Moving {group} to '{outDir}'")
@@ -239,7 +249,6 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
     # Setup pipeline
     printLog(f"Configuring pipelines...")
     for group in groups:
-        if group.lower() == "ignore": continue
 
         # Check for pipeline
         ignore = False
@@ -347,10 +356,16 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
     printLog(f"All files transferred and pipeline initialized\n")
 
 # Import the arguments
+def lower_and_strip(value):
+    return str(value).strip().lower()
+
 parser = argparse.ArgumentParser(description='APL NGS Pipeline Launcher')
 parser.add_argument("-r", "--run", help="Path to the run directory. Must contain the PipelineWorksheet.xlsx.", default = defaultSampleSheet)
 parser.add_argument("-e", "--email", help="Notify status alerts by e-mail.", default = None)
-parser.add_argument("-f", "--force", help="Will delete the target directories without notification.", action='store_true')
+parser.add_argument("-x", "--if_exists", help="What to do if directory already exists? Options: 'error' out , 'ignore' the group, or 'delete' the existing directory. Default: 'error'.", default = 'error', type = lower_and_strip)
 args = parser.parse_args()
 
-runLauncher(args.run, None if args.email == "None" else args.email, args.force)
+if (args.if_exists not in ["error",'ignore','delete']):
+    raise Exception(f"Argument --if_exists must be either 'error', 'ignore', or 'delete'.")
+
+runLauncher(args.run, None if args.email == "None" else args.email, args.if_exists)
