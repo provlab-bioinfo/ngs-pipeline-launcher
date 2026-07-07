@@ -311,25 +311,24 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
             if len(negCtrls): command = f"{command} -c {negCtrls}"
             commands.append(command)
 
-        elif(group == "ncov-R10"):
-            command = f"bash {pipelines[group]} -r {directories[group]}"
-            if len(posCtrls): command = f"{command} -p '{posCtrls}'"
-            if len(negCtrls): command = f"{command} -c {negCtrls}"
-            commands.append(command)
-
         elif (group == "PulseNet"): # TODO: Convert to own pipeline script
             parentDir = os.path.dirname(directories[group].rstrip("/")) + "/"
             baseDir = os.path.basename(directories[group].strip("/"))
             commands.append("conda activate pulsenet_analysis_pipeline")               
             commands.append(f"python {pipelines[group]} -d {parentDir} -r {baseDir}")
 
-        elif (group != ""): # TODO: Pass the sample sheet to the pipelines instead of above code
-            if directories[group].lower().endswith((".py")):
-                commands.append(f"python {pipelines[group]} {directories[group]}")
-            if directories[group].lower().endswith((".sh")):
-                commands.append(f"bash {pipelines[group]} {directories[group]}")
+        elif (group != ""):
+            if pipelines[group].lower().endswith((".py")):
+                 type = "python"
+            elif pipelines[group].lower().endswith((".sh")):
+                 type = "bash"
             else: 
-                raise Exception(f"Error: Unsure how to start generic pipeline '{directories[group]}'. This currently only supports '.py' and '.sh' scripts.")
+                raise Exception(f"Error: Unsure how to start generic pipeline '{pipelines[group]}'. This currently only supports '.py' and '.sh' scripts.")
+
+            command = f"{type} {pipelines[group]} -r {directories[group]}"
+            if len(posCtrls): command = f"{command} -p '{posCtrls}'"
+            if len(negCtrls): command = f"{command} -c {negCtrls}"
+            commands.append(command)
 
         else:
             printLog(f"   No pipeline found for {group}.")
