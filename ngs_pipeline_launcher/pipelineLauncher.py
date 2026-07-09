@@ -320,12 +320,6 @@ def runLauncher(sampleSheetPath: str, email: str = None, if_exists = "error"):
             if len(negCtrls): command = f"{command} -c {negCtrls}"
             commands.append(command)
 
-        elif (group == "PulseNet"): # TODO: Convert to own pipeline script
-            parentDir = os.path.dirname(directories[group].rstrip("/")) + "/"
-            baseDir = os.path.basename(directories[group].strip("/"))
-            commands.append("conda activate pulsenet_analysis_pipeline")               
-            commands.append(f"python {pipelines[group]} -d {parentDir} -r {baseDir}")
-
         elif (group != ""):
             if pipelines[group].lower().endswith((".py")):
                  type = "python"
