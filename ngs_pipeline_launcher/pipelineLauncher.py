@@ -1,5 +1,7 @@
-import pandas as pd, os, search_tools as st, shutil, io, time, subprocess, argparse, tempfile, pathlib, glob, re, glob, re
+import pandas as pd, os, search_tools as st, shutil, io, time, subprocess, argparse, tempfile, pathlib, re, glob
 from configparser import ConfigParser
+from itertools import chain
+from pathlib import Path
 import openpyxl as xl
 from runStatus import *
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -10,7 +12,7 @@ SLURM = "/nfs/APL_Genomics/apps/production/ngs-pipeline-launcher/templates/SLURM
 barcodeCol = "Barcode" # The column in the Pipeline Worksheet [Samples] section that contains the barcode
 samplePosCol = "Sample_Pos" # Generated column in the Pipeline Worksheet [Samples] section that contains the sample name (e.g., "27_S" for illumina)
 symlinkFQ = False # Should fastq's be symlinked?
-pathfilter = ["**/*fastq.gz","**/*fast5","**/report_*.json","**/*PipelineWorksheet*"]  # Which files should be transferred?
+pathfilter = ["**/*fastq.gz","**/*fq.gz","**/*fast5","**/report_*.json","**/*PipelineWorksheet*"]  # Which files should be transferred?
 
 def getSampleSheetDataVars(path:str, section:str):
     """Generates a dictionary from the first two columns of a [HEADER] section
@@ -228,21 +230,25 @@ def runLauncher(sampleSheetPath: str, email: str = None, if_exists = "error"):
         excludeSamples = "|".join(excludeSamples)
 
         # Move files
-        fileCount = 0    
+        found_files = list(chain.from_iterable(Path(runDir).rglob(pattern) for pattern in pathfilter))
+        found_files = [str(file.relative_to(runDir)) for file in found_files if not re.search(excludeSamples, str(file))] # Remove exluded samples
+        
+        if not any(file.endswith(("fastq.gz","fq.gz")) for file in found_files):
+            printLog(f"No fastq's found for {group}. Ignoring the pipeline.")
+            pipelines[group] = "ignore"
+            continue
 
-        for f in pathfilter:
-            for p in glob.glob(f, recursive=True, root_dir=runDir):
-                if os.path.isfile(os.path.join(runDir, p)) and not re.search(excludeSamples, p):   # Check if exists and isn't in the sample filter
-                    p_dest = p if (group != "PulseNet") else os.path.basename(p) # Put in base of target directory if from Pulsenet. TODO: Do this in the pipeline script
-                    os.makedirs(os.path.join(outDir, os.path.dirname(p_dest)), exist_ok=True)
-                    src = os.path.join(runDir, p)
-                    dst = os.path.join(outDir, p_dest)
-                    if symlinkFQ and pathlib.Path(p).suffix.lower() in [".fastq", ".fq"]: # Symlink or not
-                        os.symlink(src, dst)
-                    else:
-                        shutil.copy(src, dst)
-                    fileCount = fileCount + 1
-        printLog(f"      Copied files: {fileCount}")
+        for file in found_files:
+            file_dest = file if (group != "PulseNet") else os.path.basename(file) # Put in base of target directory if from Pulsenet. TODO: Do this in the pipeline script
+            os.makedirs(os.path.join(outDir, os.path.dirname(file_dest)), exist_ok=True)
+            src = os.path.join(runDir, file)
+            dst = os.path.join(outDir, file_dest)
+            if symlinkFQ and pathlib.Path(file).suffix.lower() in [".fastq.gz", ".fq.gz"]: # Symlink or not
+                os.symlink(src, dst)
+            else:
+                shutil.copy(src, dst)
+
+        printLog(f"      Copied files: {len(found_files)}")
         
         #subsetWorksheet(file, group, os.path.join(outDir,os.path.basename(file)))
         
