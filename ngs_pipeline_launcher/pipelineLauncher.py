@@ -327,9 +327,12 @@ def runLauncher(sampleSheetPath: str, email: str = None, if_exists = "error"):
             commands.append(command)
 
         elif (group != ""):
-            if pipelines[group].lower().endswith((".py")):
+
+            pipeline, *args = pipelines[group].split(" ")
+            
+            if pipeline.lower().endswith((".py")):
                  type = "python"
-            elif pipelines[group].lower().endswith((".sh")):
+            elif pipeline.lower().endswith((".sh")):
                  type = "bash"
             else: 
                 raise Exception(f"Error: Unsure how to start generic pipeline '{pipelines[group]}'. This currently only supports '.py' and '.sh' scripts.")
