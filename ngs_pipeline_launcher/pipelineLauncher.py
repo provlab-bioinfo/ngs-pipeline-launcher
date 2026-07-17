@@ -177,9 +177,10 @@ def runLauncher(sampleSheetPath: str, email: str = None, if_exists = "error"):
             continue
         
         # Check if the pipeline exists
-        if not os.path.exists(pipelines[group]):
-            if (pipelines[group] != "ignore"):
-                raise Exception(f"Pipeline for '{group}' does not exist at '{pipelines[group]}'")
+        pipeline, *args = pipelines[group].split(" ")
+        if not os.path.exists(pipeline):
+            if (pipeline != "ignore"):
+                raise Exception(f"Pipeline for '{group}' does not exist at '{pipeline}'")
 
         # Check if the directories exist
         if os.path.exists(directories[group]):
@@ -304,29 +305,30 @@ def runLauncher(sampleSheetPath: str, email: str = None, if_exists = "error"):
             return f"ln -s {file} {link}"
 
         commands = []
-        if (group == "ncov" or group == "ncov-ww"): #TODO: Put this in pipeline script
-            # Do symlinks
-            if platform == "illumina":
-                commands.append(symlink("Fastq","fastq")) 
-            elif platform == "nanopore":
-                commands.append(symlink("fast5_pass","fast5"))   
-                commands.append(symlink("fastq_pass","gup_out"))   
+        # if (group == "ncov" or group == "ncov-ww"): #TODO: Put this in pipeline script
+        #     # Do symlinks
+        #     if platform == "illumina":
+        #         commands.append(symlink("Fastq","fastq")) 
+        #     elif platform == "nanopore":
+        #         commands.append(symlink("fast5_pass","fast5"))   
+        #         commands.append(symlink("fastq_pass","gup_out"))   
 
-            # Go to parent dir
-            parentDir = os.path.dirname(directories[group].rstrip("/")) + "/"
-            commands.append("\ncd {}\n".format(parentDir))
+        #     # Go to parent dir
+        #     parentDir = os.path.dirname(directories[group].rstrip("/")) + "/"
+        #     commands.append("\ncd {}\n".format(parentDir))
 
-            baseDir = os.path.basename(directories[group].strip("/"))
+        #     baseDir = os.path.basename(directories[group].strip("/"))
 
-            # Run pipeline
-            command = f"python {pipelines[group]} -d {parentDir} -r {baseDir} -b 2"
-            if (group == "ncov-ww"): command = command + " -f"
+        #     # Run pipeline
+        #     command = f"python {pipelines[group]} -d {parentDir} -r {baseDir} -b 2"
+        #     if (group == "ncov-ww"): command = command + " -f"
 
-            if len(posCtrls): command = f"{command} -p {posCtrls}"
-            if len(negCtrls): command = f"{command} -c {negCtrls}"
-            commands.append(command)
+        #     if len(posCtrls): command = f"{command} -p {posCtrls}"
+        #     if len(negCtrls): command = f"{command} -c {negCtrls}"
+        #     commands.append(command)
 
-        elif (group != ""):
+        #elif (group != ""):
+        if (group != ""):
 
             pipeline, *args = pipelines[group].split(" ")
             
@@ -343,7 +345,7 @@ def runLauncher(sampleSheetPath: str, email: str = None, if_exists = "error"):
             commands.append(command)
 
         else:
-            printLog(f"   No pipeline found for {group}.")
+            printLog(f"   No pipeline found for {group}. Skipping.")
             continue
 
         # Generate the SLURM file
