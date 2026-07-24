@@ -78,7 +78,6 @@ def generateSLURM(SLURM:str, jobName: str, runName: str, outputDir: str, command
     outFile = os.path.join(outputDir,runName+"_SLURM.batch")
     file = open(outFile, "wt+")
     file.write(data)
-    file.write(f"\n\ncd {outputDir}")
     file.write("\n\n"+command)
     file.close()
     return(outFile)
@@ -289,49 +288,13 @@ def runLauncher(sampleSheetPath: str, email: str = None, if_exists = "error"):
         # Parse extra data
         accessions = allSamples.loc[allSamples['Sample_Group'] == group]
 
-        # Create the SLURM command
-        symlink = lambda dir,link: f"ln -s {st.findFiles2(os.path.join('./**',dir))[0]} {os.path.join(directories[group],link)}"
+        # Create the SLURM file
+        commands = [f"cd {directories[group]}"]
 
-        def symlink(dir,link): # Creates symlink command
-            path = os.path.join(directories[group],"**",dir)
-            file = st.findFiles2(path)
-            if (len(file) < 1): 
-                raise Exception(f"Error: No directory found for '{path}'")
-            elif(len(file) > 1):
-                raise Exception(f"Error: More than 1 directory found for '{path}'")
-            file = os.path.relpath(file[0],directories[group])
-            link = os.path.join(directories[group],link)
-            link = os.path.relpath(link,directories[group])
-            return f"ln -s {file} {link}"
-
-        commands = []
-        # if (group == "ncov" or group == "ncov-ww"): #TODO: Put this in pipeline script
-        #     # Do symlinks
-        #     if platform == "illumina":
-        #         commands.append(symlink("Fastq","fastq")) 
-        #     elif platform == "nanopore":
-        #         commands.append(symlink("fast5_pass","fast5"))   
-        #         commands.append(symlink("fastq_pass","gup_out"))   
-
-        #     # Go to parent dir
-        #     parentDir = os.path.dirname(directories[group].rstrip("/")) + "/"
-        #     commands.append("\ncd {}\n".format(parentDir))
-
-        #     baseDir = os.path.basename(directories[group].strip("/"))
-
-        #     # Run pipeline
-        #     command = f"python {pipelines[group]} -d {parentDir} -r {baseDir} -b 2"
-        #     if (group == "ncov-ww"): command = command + " -f"
-
-        #     if len(posCtrls): command = f"{command} -p {posCtrls}"
-        #     if len(negCtrls): command = f"{command} -c {negCtrls}"
-        #     commands.append(command)
-
-        #elif (group != ""):
         if (group != ""):
 
-            pipeline, *args = pipelines[group].split(" ")
-            
+            # Check for pipeline extension to determine interpreter
+            pipeline, *args = pipelines[group].split(" ")            
             if pipeline.lower().endswith((".py")):
                  type = "python"
             elif pipeline.lower().endswith((".sh")):
@@ -339,6 +302,7 @@ def runLauncher(sampleSheetPath: str, email: str = None, if_exists = "error"):
             else: 
                 raise Exception(f"Error: Unsure how to start generic pipeline '{pipelines[group]}'. This currently only supports '.py' and '.sh' scripts.")
 
+            # Create commands
             command = f"{type} {pipelines[group]} -r {directories[group]}"
             if len(posCtrls): command = f"{command} -p '{posCtrls}'"
             if len(negCtrls): command = f"{command} -c {negCtrls}"
