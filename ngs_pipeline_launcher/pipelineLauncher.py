@@ -1,5 +1,7 @@
-import pandas as pd, os, search_tools as st, shutil, io, time, subprocess, argparse, tempfile, pathlib, glob, re, glob, re
+import pandas as pd, os, search_tools as st, shutil, io, time, subprocess, argparse, tempfile, pathlib, re, glob
 from configparser import ConfigParser
+from itertools import chain
+from pathlib import Path
 import openpyxl as xl
 from runStatus import *
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -10,7 +12,7 @@ SLURM = "/nfs/APL_Genomics/apps/production/ngs-pipeline-launcher/templates/SLURM
 barcodeCol = "Barcode" # The column in the Pipeline Worksheet [Samples] section that contains the barcode
 samplePosCol = "Sample_Pos" # Generated column in the Pipeline Worksheet [Samples] section that contains the sample name (e.g., "27_S" for illumina)
 symlinkFQ = False # Should fastq's be symlinked?
-pathfilter = ["**/*fastq.gz","**/*fast5","**/report_*.json","**/*PipelineWorksheet*"]  # Which files should be transferred?
+pathfilter = ["**/*fastq.gz","**/*fq.gz","**/*fast5","**/report_*.json","**/*PipelineWorksheet*"]  # Which files should be transferred?
 
 def getSampleSheetDataVars(path:str, section:str):
     """Generates a dictionary from the first two columns of a [HEADER] section
@@ -76,7 +78,6 @@ def generateSLURM(SLURM:str, jobName: str, runName: str, outputDir: str, command
     outFile = os.path.join(outputDir,runName+"_SLURM.batch")
     file = open(outFile, "wt+")
     file.write(data)
-    file.write(f"\n\ncd {outputDir}")
     file.write("\n\n"+command)
     file.close()
     return(outFile)
@@ -87,11 +88,11 @@ def printLog (message: str) :
     """
     print (f"{currentTime()} | {message}", flush=True)
 
-def runLauncher(sampleSheetPath: str, email: str = None, force = False):
+def runLauncher(sampleSheetPath: str, email: str = None, if_exists = "error"):
     """Generates a SLURM command file based on a template
     :param sampleSheetPath: The path to the directory containing the sample sheet. The file must contain the sub-string 'PipelineWorksheet'.
     :param email: If desired, SLURM will send an e-mail on job status. Default = None
-    :param force: Whether to delete the target directories, if they exist. Should only used while developing/debugging. Default = False
+    :param if_exists: What to do if directory already exists? Options: 'error' out , 'ignore' the group, or 'delete' the existing directory. Default = 'error'.
     """
     printLog(f"Pipeline launcher initialized for '{sampleSheetPath}'...")
 
@@ -158,24 +159,40 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
 
     # Check for appropriate inputs
     groups = sorted(set(allSamples["Sample_Group"].dropna().values))
-    for group in groups:
+    for group in groups[:]:
 
+        # Remove group if name is 'ignore'
         if group == "ignore":
+            groups.remove(group)
+            continue
+
+        # Remove group if target directory is 'ignore'
+        ignore = False
+        try: ignore = directories[group].lower().strip() == "ignore"
+        except KeyError: ignore = True
+        if (ignore): 
+            printLog(f"   Ignoring file copy for {group}"); 
+            groups.remove(group)
             continue
         
-        if not os.path.exists(pipelines[group]): # Check if pipeline exists
-            if (pipelines[group] != "ignore"):
-                raise Exception(f"Pipeline for '{group}' does not exist at '{pipelines[group]}'")
+        # Check if the pipeline exists
+        pipeline, *args = pipelines[group].split(" ")
+        if not os.path.exists(pipeline):
+            if (pipeline != "ignore"):
+                raise Exception(f"Pipeline for '{group}' does not exist at '{pipeline}'")
 
-        if os.path.exists(directories[group]): # Check if directories exist
+        # Check if the directories exist
+        if os.path.exists(directories[group]):
             if (directories[group] != "ignore"):
-                if (len(directories[group]) != 0):
-                    if not force:
+                if (len(directories[group]) != 0): # If directory already exists, check if_exists argument
+                    if if_exists == "error":
                         raise Exception(f"Directory for '{group}' at '{directories[group]}' already exists and is not empty. Please choose empty or non-existing directory.")
-                    else:
+                    if if_exists == "delete":
                         printLog(f"Removing dir: {directories[group]}.")
                         shutil.rmtree(directories[group], ignore_errors=True)
-
+                    if if_exists == "ignore":
+                        groups.remove(group) # Remove the group from further processing
+                    
     # time.sleep(15*60) # Extra wait to make sure everything is done
 
     # Add barcodes to the respective sequencing type
@@ -194,14 +211,9 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
     printLog(f"Locating for files to move...")
 
     for group in groups:
-        if group.lower() == "ignore": continue
 
         # Check for directory
         outDir = directories[group]
-        ignore = False
-        try: ignore = outDir.lower() == "ignore"
-        except KeyError: ignore = True
-        if (ignore): printLog(f"   Ignoring file copy for {group}"); continue
 
         # Get barcodes to include
         printLog(f"   Moving {group} to '{outDir}'")
@@ -218,28 +230,31 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
         excludeSamples = "|".join(excludeSamples)
 
         # Move files
-        fileCount = 0    
+        found_files = list(chain.from_iterable(Path(runDir).rglob(pattern) for pattern in pathfilter))
+        found_files = [str(file.relative_to(runDir)) for file in found_files if not re.search(excludeSamples, str(file))] # Remove exluded samples
+        
+        if not any(file.endswith(("fastq.gz","fq.gz")) for file in found_files):
+            printLog(f"No fastq's found for {group}. Ignoring the pipeline.")
+            pipelines[group] = "ignore"
+            continue
 
-        for f in pathfilter:
-            for p in glob.glob(f, recursive=True, root_dir=runDir):
-                if os.path.isfile(os.path.join(runDir, p)) and not re.search(excludeSamples, p):   # Check if exists and isn't in the sample filter
-                    p_dest = p if (group != "PulseNet") else os.path.basename(p) # Put in base of target directory if from Pulsenet. TODO: Do this in the pipeline script
-                    os.makedirs(os.path.join(outDir, os.path.dirname(p_dest)), exist_ok=True)
-                    src = os.path.join(runDir, p)
-                    dst = os.path.join(outDir, p_dest)
-                    if symlinkFQ and pathlib.Path(p).suffix.lower() in [".fastq", ".fq"]: # Symlink or not
-                        os.symlink(src, dst)
-                    else:
-                        shutil.copy(src, dst)
-                    fileCount = fileCount + 1
-        printLog(f"      Copied files: {fileCount}")
+        for file in found_files:
+            file_dest = file if (group != "PulseNet") else os.path.basename(file) # Put in base of target directory if from Pulsenet. TODO: Do this in the pipeline script
+            os.makedirs(os.path.join(outDir, os.path.dirname(file_dest)), exist_ok=True)
+            src = os.path.join(runDir, file)
+            dst = os.path.join(outDir, file_dest)
+            if symlinkFQ and pathlib.Path(file).suffix.lower() in [".fastq.gz", ".fq.gz"]: # Symlink or not
+                os.symlink(src, dst)
+            else:
+                shutil.copy(src, dst)
+
+        printLog(f"      Copied files: {len(found_files)}")
         
         #subsetWorksheet(file, group, os.path.join(outDir,os.path.basename(file)))
         
     # Setup pipeline
     printLog(f"Configuring pipelines...")
     for group in groups:
-        if group.lower() == "ignore": continue
 
         # Check for pipeline
         ignore = False
@@ -273,61 +288,28 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
         # Parse extra data
         accessions = allSamples.loc[allSamples['Sample_Group'] == group]
 
-        # Create the SLURM command
-        symlink = lambda dir,link: f"ln -s {st.findFiles2(os.path.join('./**',dir))[0]} {os.path.join(directories[group],link)}"
+        # Create the SLURM file
+        commands = [f"cd {directories[group]}"]
 
-        def symlink(dir,link): # Creates symlink command
-            path = os.path.join(directories[group],"**",dir)
-            file = st.findFiles2(path)
-            if (len(file) < 1): 
-                raise Exception(f"Error: No directory found for '{path}'")
-            elif(len(file) > 1):
-                raise Exception(f"Error: More than 1 directory found for '{path}'")
-            file = os.path.relpath(file[0],directories[group])
-            link = os.path.join(directories[group],link)
-            link = os.path.relpath(link,directories[group])
-            return f"ln -s {file} {link}"
+        if (group != ""):
 
-        commands = []
-        if (group == "ncov" or group == "ncov-ww"): #TODO: Put this in pipeline script
-            # Do symlinks
-            if platform == "illumina":
-                commands.append(symlink("Fastq","fastq")) 
-            elif platform == "nanopore":
-                commands.append(symlink("fast5_pass","fast5"))   
-                commands.append(symlink("fastq_pass","gup_out"))   
+            # Check for pipeline extension to determine interpreter
+            pipeline, *args = pipelines[group].split(" ")            
+            if pipeline.lower().endswith((".py")):
+                 type = "python"
+            elif pipeline.lower().endswith((".sh")):
+                 type = "bash"
+            else: 
+                raise Exception(f"Error: Unsure how to start generic pipeline '{pipelines[group]}'. This currently only supports '.py' and '.sh' scripts.")
 
-            # Go to parent dir
-            parentDir = os.path.dirname(directories[group].rstrip("/")) + "/"
-            commands.append("\ncd {}\n".format(parentDir))
-
-            baseDir = os.path.basename(directories[group].strip("/"))
-
-            # Run pipeline
-            command = f"python {pipelines[group]} -d {parentDir} -r {baseDir} -b 2"
-            if (group == "ncov-ww"): command = command + " -f"
-
-            if len(posCtrls): command = f"{command} -p {posCtrls}"
-            if len(negCtrls): command = f"{command} -c {negCtrls}"
-            commands.append(command)
-
-        elif(group == "ncov-R10"):
-            command = f"bash {pipelines[group]} -r {directories[group]}"
+            # Create commands
+            command = f"{type} {pipelines[group]} -r {directories[group]}"
             if len(posCtrls): command = f"{command} -p '{posCtrls}'"
             if len(negCtrls): command = f"{command} -c {negCtrls}"
             commands.append(command)
 
-        elif (group == "PulseNet"): # TODO: Convert to own pipeline script
-            parentDir = os.path.dirname(directories[group].rstrip("/")) + "/"
-            baseDir = os.path.basename(directories[group].strip("/"))
-            commands.append("conda activate pulsenet_analysis_pipeline")               
-            commands.append(f"python {pipelines[group]} -d {parentDir} -r {baseDir}")
-
-        elif (group != ""): # TODO: Pass the sample sheet to the pipelines instead of above code
-            commands.append(f"bash {pipelines[group]} {directories[group]}")
-
         else:
-            printLog(f"   No pipeline found for {group}.")
+            printLog(f"   No pipeline found for {group}. Skipping.")
             continue
 
         # Generate the SLURM file
@@ -343,10 +325,16 @@ def runLauncher(sampleSheetPath: str, email: str = None, force = False):
     printLog(f"All files transferred and pipeline initialized\n")
 
 # Import the arguments
+def lower_and_strip(value):
+    return str(value).strip().lower()
+
 parser = argparse.ArgumentParser(description='APL NGS Pipeline Launcher')
 parser.add_argument("-r", "--run", help="Path to the run directory. Must contain the PipelineWorksheet.xlsx.", default = defaultSampleSheet)
 parser.add_argument("-e", "--email", help="Notify status alerts by e-mail.", default = None)
-parser.add_argument("-f", "--force", help="Will delete the target directories without notification.", action='store_true')
+parser.add_argument("-x", "--if_exists", help="What to do if directory already exists? Options: 'error' out , 'ignore' the group, or 'delete' the existing directory. Default: 'error'.", default = 'error', type = lower_and_strip)
 args = parser.parse_args()
 
-runLauncher(args.run, None if args.email == "None" else args.email, args.force)
+if (args.if_exists not in ["error",'ignore','delete']):
+    raise Exception(f"Argument --if_exists must be either 'error', 'ignore', or 'delete'.")
+
+runLauncher(args.run, None if args.email == "None" else args.email, args.if_exists)
