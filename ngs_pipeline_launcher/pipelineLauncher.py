@@ -226,7 +226,7 @@ def runLauncher(sampleSheetPath: str, email: str = None, if_exists = "error"):
         excludeSamples = st.sortDigitSuffix(list(excludeSamples))
         # print("      Excluding barcodes: " + ", ".join(st.collapseNumbers(excludeSamples)))
         excludeSamples = [f"\/{sample}|\/.*_{sample}|\/.*-{sample}" for sample in excludeSamples]
-        excludeSamples = excludeSamples + ["fail","skip","unclassified","Undetermined","~$","pod5"]
+        excludeSamples = excludeSamples + ["fail","skip","unclassified","Undetermined","~\$","pod5"]
         excludeSamples = "|".join(excludeSamples)
 
         # Move files
