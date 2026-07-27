@@ -4,7 +4,6 @@ from itertools import chain
 from pathlib import Path
 import openpyxl as xl
 from runStatus import *
-pd.options.mode.chained_assignment = None  # default='warn'
 os.chdir(os.path.dirname(__file__))
 
 defaultSampleSheet = "./"
@@ -59,15 +58,14 @@ def subsetWorksheet(group:str, path:str, outPath:str, maxCols:int = 26):
     last_col = maxCols 
     for col_idx in range(last_col+1, 16385):
         col_letter = xl.utils.get_column_letter(col_idx)
-        # if (ws.column_dimensions[col_letter].hidden):
-        #     break
+        # if (ws.column_dimensions[col_letter].hidden): break
         ws.column_dimensions[col_letter].hidden = True
 
     # Remove samples from the [Samples] section
     rows = list(ws.iter_rows(min_row=1, max_row=ws.max_row))
 
     for row in reversed(rows): 
-        cell = row[2] # col idx 3 is Sample_Group
+        cell = row[2] # col idx 3 is Sample_Group, TODO: Search for this instead of hardcoding
         if cell.value == "Sample_Group":
             break
         if cell.value != group:
@@ -194,7 +192,7 @@ def runLauncher(sampleSheetPath: str, email: str = None, if_exists = "error"):
     while not (completionFiles := isRunCompleted(runDir)):#isRunCompleted(basePath, header["Seq_Type"]):
         printLog(f"   Waiting...")
         time.sleep(sleep_time)
-        sleep_time = min(3600, sleep_time*2)
+        sleep_time = min(3600, sleep_time*2) # Use an increasing wait timer for sleeping, to max of 1 hour
 
     if any(".xml" in i for i in completionFiles): # "CompletedJobInfo.xml","RunCompletionStatus.xml"
         platform = "illumina"
@@ -241,11 +239,11 @@ def runLauncher(sampleSheetPath: str, email: str = None, if_exists = "error"):
                     if if_exists == "ignore":
                         groups.remove(group) # Remove the group from further processing
                     
-    # time.sleep(15*60) # Extra wait to make sure everything is done
+    time.sleep(5) # Extra little wait to make sure everything is done
 
     # Add barcodes to the respective sequencing type
     allSamples[samplePosCol] = allSamples[barcodeCol]
-    allBarcodes = range(1,1000) # 1000 is arbitrary. Only needs to be higher than the max barcode value.
+    allBarcodes = range(1,500) # Max number is arbitrary. Only needs to be higher than the max barcode value.
 
     if platform == "illumina":
         label = lambda x: f"{x}_S"
