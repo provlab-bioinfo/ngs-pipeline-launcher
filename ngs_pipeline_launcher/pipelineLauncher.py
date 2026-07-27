@@ -42,22 +42,70 @@ def getSampleSheetDataFrame(path:str, section:str):
     df = pd.read_csv(buf)
     return (df)
 
-def subsetWorksheet(path:str, group:str, out_path:str):
-    """Subsets a worksheet to only include a specific Sample_Group  in the [SAMPLES] section
+def subsetWorksheet(group:str, path:str, outPath:str, maxCols:int = 26):
+    """Subsets a worksheet to only include a specific Sample_Group in the [SAMPLES] section.
+    Due to limitations with openpyxl, formatting cannot be removed from the entire row without a significant amount of computation,
+    so formatting will only be changed for columns 1 to 'maxCols'.
     :param group: The group to look for in the column 'Sample_Group'
-    :param path: The output path of the subsetted pipeline worksheet
+    :param path: The input path of the pipeline worksheet
+    :param out_path: The output path of the subsetted pipeline worksheet
+    :param maxCols: The maximum number of columns to display/format
     :return: A DataFrame representing the sections
     """ 
     wb = xl.load_workbook(path)
     ws = wb.active
+
+    # Sets the max visible columns
+    last_col = maxCols 
+    for col_idx in range(last_col+1, 16385):
+        col_letter = xl.utils.get_column_letter(col_idx)
+        # if (ws.column_dimensions[col_letter].hidden):
+        #     break
+        ws.column_dimensions[col_letter].hidden = True
+
+    # Remove samples from the [Samples] section
     rows = list(ws.iter_rows(min_row=1, max_row=ws.max_row))
+
     for row in reversed(rows): 
         cell = row[2] # col idx 3 is Sample_Group
         if cell.value == "Sample_Group":
             break
         if cell.value != group:
-            ws.delete_rows(cell.row, 1)
-    wb.save(out_path)
+            ws.delete_rows(idx = cell.row)
+            # Clear styles from the last row in the sheet, as the data will have shifted upwards
+            for row in ws.iter_cols(min_row = ws.max_row+1, min_col = 1, max_col = last_col+1, max_row = ws.max_row+1):
+                for cell in row:
+                    cell.style = "Normal"
+
+    # Hide directories in the [Directories section]
+    hideRowsExceptGroup(ws = ws, col = 1, section = "[Directories]", group = group)
+    hideRowsExceptGroup(ws = ws, col = 1, section = "[Pipelines]",   group = group)
+
+    wb.save(outPath)
+
+def hideRowsExceptGroup(ws, col, section, group):
+    """Hides rows in the worksheet that do not match the group
+    :param ws: The worksheet to check
+    :param path: The column to check, as an integer. E.g., 1 for 'A'
+    :param section: The section header. Typically '[Directories]' or '[Pipelines]'.
+    :param group: The group to check for (case sensitive).
+    :return: A DataFrame representing the sections
+    """     
+    sectionIdx = 0
+
+    # Find the start of the section
+    for cell in ws[xl.utils.get_column_letter(1)]:
+        if cell.value == section:
+            sectionIdx = cell.row
+            break
+    
+    for row in range(sectionIdx+1,ws.max_row+1):
+        val = ws.cell(row,1).value
+        if val is None: # Break if the first column is blank
+            break
+        val = ws.cell(row,col).value
+        if val != group: # Check if the target column contains the group
+            ws.row_dimensions[row].hidden = True
 
 def generateSLURM(SLURM:str, jobName: str, runName: str, outputDir: str, command: str, email: str = None):
     """Generates a SLURM command file based on a template
@@ -245,13 +293,13 @@ def runLauncher(sampleSheetPath: str, email: str = None, if_exists = "error"):
             dst = os.path.join(outDir, file_dest)
             if symlinkFQ and pathlib.Path(file).suffix.lower() in [".fastq.gz", ".fq.gz"]: # Symlink or not
                 os.symlink(src, dst)
+            elif "PipelineWorksheet" in file:
+                subsetWorksheet(group, src, dst)
             else:
                 shutil.copy(src, dst)
 
         printLog(f"      Copied files: {len(found_files)}")
-        
-        #subsetWorksheet(file, group, os.path.join(outDir,os.path.basename(file)))
-        
+                
     # Setup pipeline
     printLog(f"Configuring pipelines...")
     for group in groups:
