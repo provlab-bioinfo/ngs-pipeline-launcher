@@ -284,14 +284,13 @@ def runLauncher(sampleSheetPath: str, email: str = None, if_exists = "error"):
             pipelines[group] = "ignore"
             continue
 
-        for file in found_files:
-            file_dest = file if (group != "PulseNet") else os.path.basename(file) # Put in base of target directory if from Pulsenet. TODO: Do this in the pipeline script
-            os.makedirs(os.path.join(outDir, os.path.dirname(file_dest)), exist_ok=True)
-            src = os.path.join(runDir, file)
-            dst = os.path.join(outDir, file_dest)
-            if symlinkFQ and pathlib.Path(file).suffix.lower() in [".fastq.gz", ".fq.gz"]: # Symlink or not
+        for filePath in found_files:
+            os.makedirs(os.path.join(outDir, os.path.dirname(filePath)), exist_ok=True)
+            src = os.path.join(runDir, filePath)
+            dst = os.path.join(outDir, filePath)
+            if symlinkFQ and pathlib.Path(filePath).suffix.lower() in [".fastq.gz", ".fq.gz"]: # Symlink or not
                 os.symlink(src, dst)
-            elif "PipelineWorksheet" in file:
+            elif "PipelineWorksheet" in filePath:
                 subsetWorksheet(group, src, dst)
             else:
                 shutil.copy(src, dst)
