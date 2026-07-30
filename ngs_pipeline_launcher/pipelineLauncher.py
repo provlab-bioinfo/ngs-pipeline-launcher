@@ -327,7 +327,7 @@ def runLauncher(sampleSheetPath: str, email: str = None, if_exists = "error"):
 
             posCtrls = ctrls['Control'].str.lower() != "negative"
             posCtrls = ctrls.loc[posCtrls==True]
-            posCtrls["Control"] = posCtrls[samplePosCol].astype(str) +","+ posCtrls["Control"].astype(str)
+            posCtrls.loc[:,"Control"] = posCtrls[samplePosCol].astype(str) +","+ posCtrls["Control"].astype(str)
             posCtrls = " ".join(posCtrls["Control"].values.tolist())
 
         # Parse extra data
@@ -374,7 +374,7 @@ def lower_and_strip(value):
     return str(value).strip().lower()
 
 parser = argparse.ArgumentParser(description='APL NGS Pipeline Launcher')
-parser.add_argument("-r", "--run", help="Path to the run directory. Must contain the PipelineWorksheet.xlsx.", default = defaultSampleSheet)
+parser.add_argument("-r", "--run", help="Path to the run directory or a pipeline worksheet. Must contain a file '*PipelineWorksheet*'.", default = defaultSampleSheet)
 parser.add_argument("-e", "--email", help="Notify status alerts by e-mail.", default = None)
 parser.add_argument("-x", "--if_exists", help="What to do if directory already exists? Options: 'error' out , 'ignore' the group, or 'delete' the existing directory. Default: 'error'.", default = 'error', type = lower_and_strip)
 args = parser.parse_args()
