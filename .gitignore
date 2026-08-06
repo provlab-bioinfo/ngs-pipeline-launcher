@@ -3,6 +3,7 @@
 /.vscode
 /.nextflow
 test.bash
+~$*.xls*
 
 # From https://github.com/github/gitignore/blob/main/Python.gitignore
 # Byte-compiled / optimized / DLL files

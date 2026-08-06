@@ -115,12 +115,12 @@ def generateSLURM(SLURM:str, jobName: str, runName: str, outputDir: str, command
     file = open(SLURM, "rt")
     data = file.read()
     file.close()
-    data = data.replace("[JOB_NAME]", jobName)
+    data = data.replace("[JOB_NAME]",   jobName)
     data = data.replace("[OUTPUT_DIR]", os.path.join(outputDir,runName+"_out.txt"))
-    data = data.replace("[ERROR_DIR]", os.path.join(outputDir,runName+"_error.txt"))
-    data = data.replace("[EMAIL]",  "NONE" if email is None else email)
-    data = data.replace("[MAIL_TYPE]", "NONE" if email is None else "ALL")      
-    data = data.replace("[RUN_DIR]", outputDir)
+    data = data.replace("[ERROR_DIR]",  os.path.join(outputDir,runName+"_error.txt"))
+    data = data.replace("[EMAIL]",      "NONE" if email is None else email)
+    data = data.replace("[MAIL_TYPE]",  "NONE" if email is None else "ALL")      
+    data = data.replace("[RUN_DIR]",    outputDir)
     outFile = os.path.join(outputDir,runName+"_SLURM.batch")
     file = open(outFile, "wt+")
     file.write(data)
@@ -330,14 +330,9 @@ def runLauncher(sampleSheetPath: str, email: str = None, if_exists = "error"):
             posCtrls.loc[:,"Control"] = posCtrls[samplePosCol].astype(str) +","+ posCtrls["Control"].astype(str)
             posCtrls = " ".join(posCtrls["Control"].values.tolist())
 
-        # Parse extra data
-        accessions = allSamples.loc[allSamples['Sample_Group'] == group]
-
         # Create the SLURM file
         commands = [f"cd {directories[group]}"]
-
         if (group != ""):
-
             # Check for pipeline extension to determine interpreter
             pipeline, *args = pipelines[group].split(" ")            
             if pipeline.lower().endswith((".py")):

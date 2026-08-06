@@ -1,0 +1,13 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_CURRENT_USER\Software\Classes\directory\shell\runPipelineLauncher]
+@="Run Pipeline Launcher"
+
+[HKEY_CURRENT_USER\Software\Classes\directory\shell\runPipelineLauncher\command]
+@="powershell -file \\\\healthy.bewell.ca\\Apps\\APL\\Genomics_DEV\\projects\\alindsay\\Projects\\ngs-pipeline-launcher\\ngs_pipeline_launcher\\pipelineLauncher.ps1 %1%"
+
+[HKEY_CURRENT_USER\Software\Classes\*\shell\runPipelineLauncher]
+@="Run Pipeline Launcher"
+
+[HKEY_CURRENT_USER\Software\Classes\*\shell\runPipelineLauncher\command]
+@="powershell -file \\\\healthy.bewell.ca\\Apps\\APL\\Genomics_DEV\\projects\\alindsay\\Projects\\ngs-pipeline-launcher\\ngs_pipeline_launcher\\pipelineLauncher.ps1 %1%"
