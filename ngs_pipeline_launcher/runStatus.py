@@ -1,10 +1,7 @@
-import glob, itertools, os
-from datetime import datetime
+import glob, itertools, os, subprocess, re
+from pathlib import Path
 
-def currentTime():
-    return f"{datetime.now().strftime('%H:%M:%S')}"
-
-def isRunCompleted(path:str, seqType: str = None):
+def isRunCompleted(runPath:str):
     """Checks whether a sequencing run is completed. 
     For Illumina, checks for the 'CompletedJobInfo.xml' file. 
     For Nanopore, checks for the 'final_summary_*.txt' file.
@@ -12,31 +9,28 @@ def isRunCompleted(path:str, seqType: str = None):
     :param seqType: The type of sequencing. Either 'Illumina' or 'Nanopore'
     :return: If complete, the list of files found. If not complete, None.
     """
-    if not os.path.exists(path):
+    if not os.path.exists(runPath):
         return False
-        #raise Exception("Run directory does not exist")
 
-    file = ["final_summary_*.txt","CompletedJobInfo.xml","RunCompletionStatus.xml"]
-    if (seqType):
-        if seqType.lower() == "nanopore":
-            file = [file[0]]
-        elif seqType.lower() == "illumina":
-            file = [file[1]]
+    # Exit if something is actively acessing any files
+    # checkIfCopying = subprocess.run(['lsof', '+D', path], 
+    #                         stdout=subprocess.PIPE, 
+    #                         stderr=subprocess.PIPE)    
+    # if (checkIfCopying.returncode != 1):
+    #     return None
 
-    found = [glob.glob(os.path.join(path,"**",f), recursive = True) for f in file]
+    # Search for the target files
+    completionFiles = ["final_summary_*.txt","CompletedJobInfo.xml","RunCompletionStatus.xml"]
+
+    # Using rglob
+    # found = [runPath.rglob(f) for f in completionFiles]
+    # found = [str(s) for s in list(itertools.chain.from_iterable(found))]
+
+    # Original
+    found = [glob.glob(os.path.join(runPath,"**",f), recursive = True) for f in completionFiles]
     found = list(itertools.chain.from_iterable(found))
 
     if (len(found)):
         return found
     else:
         return None
-
-# from shutil import copytree,copy2
-# def copyTree2(source, destination):
-    
-    # def copy2_verbose(src, dst):
-#       print(f'Copying {src}')
-#       copy2(src,dst)
-
-    # copytree(source, destination, copy_function=copy2_verbose)
-
