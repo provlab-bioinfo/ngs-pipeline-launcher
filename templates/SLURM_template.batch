@@ -10,7 +10,7 @@
 #SBATCH --mail-type=[MAIL_TYPE]
 #SBATCH --output=[OUTPUT_DIR]
 #SBATCH --error=[ERROR_DIR]
-#SBATCH --partition=vm-cpu,big-ram
+#SBATCH --partition=vm-cpu,big-ram,huge-ram
 
 # Note that only certain servers can access /nfs/WGS_ONT hence --nodelist parameter
 # ---------------------------------------------------------------------
