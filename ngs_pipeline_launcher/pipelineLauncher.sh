@@ -3,6 +3,7 @@ eval "$(conda shell.bash hook)"
 conda activate ngs-pipeline-launcher
 RUN=$1
 NAME=$(basename $RUN)
+NAME=${NAME/_PipelineWorksheet.xlsx/}
 EMAIL=${2-None}
 
 FOLDER="$RUN"
