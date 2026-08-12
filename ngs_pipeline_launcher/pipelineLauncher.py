@@ -4,6 +4,7 @@ from itertools import chain
 from pathlib import Path
 import openpyxl as xl
 from runStatus import *
+from datetime import datetime
 os.chdir(os.path.dirname(__file__))
 
 defaultSampleSheet = "./"
@@ -127,6 +128,9 @@ def generateSLURM(SLURM:str, jobName: str, runName: str, outputDir: str, command
     file.write("\n\n"+command)
     file.close()
     return(outFile)
+
+def currentTime():
+    return f"{datetime.now().strftime('%H:%M:%S')}"
 
 def printLog (message: str) :
     """Prints a message formatted as "[Current time] | [Message]
