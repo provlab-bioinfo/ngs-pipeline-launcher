@@ -1,13 +1,27 @@
 Windows Registry Editor Version 5.00
+; Setup the commands for directories
+[HKEY_CURRENT_USER\Software\Classes\Directory\shell\ProvLab]
+"MUIVerb"="ProvLab Tools"
+"subcommands"=""
 
-[HKEY_CURRENT_USER\Software\Classes\directory\shell\runPipelineLauncher]
+[HKEY_CURRENT_USER\Software\Classes\Directory\shell\ProvLab\shell]
+
+[HKEY_CURRENT_USER\Software\Classes\directory\shell\ProvLab\shell\runPipelineLauncher]
 @="Run Pipeline Launcher"
 
-[HKEY_CURRENT_USER\Software\Classes\directory\shell\runPipelineLauncher\command]
+[HKEY_CURRENT_USER\Software\Classes\directory\shell\ProvLab\shell\runPipelineLauncher\command]
 @="powershell -file \\\\healthy.bewell.ca\\Apps\\APL\\Genomics_DEV\\projects\\alindsay\\Projects\\ngs-pipeline-launcher\\ngs_pipeline_launcher\\pipelineLauncher.ps1 %1%"
 
-[HKEY_CURRENT_USER\Software\Classes\*\shell\runPipelineLauncher]
-@="Run Pipeline Launcher"
+; Setup the commands for files
+[HKEY_CURRENT_USER\Software\Classes\*\shell\ProvLab]
+"MUIVerb"="ProvLab Tools"
+"subcommands"=""
 
-[HKEY_CURRENT_USER\Software\Classes\*\shell\runPipelineLauncher\command]
+[HKEY_CURRENT_USER\Software\Classes\*\shell\ProvLab\shell]
+
+[HKEY_CURRENT_USER\Software\Classes\*\shell\ProvLab\shell\runPipelineLauncher]
+@="Run Pipeline Launcher"
+"CommandFlags"=dword:00000060
+
+[HKEY_CURRENT_USER\Software\Classes\*\shell\ProvLab\shell\runPipelineLauncher\command]
 @="powershell -file \\\\healthy.bewell.ca\\Apps\\APL\\Genomics_DEV\\projects\\alindsay\\Projects\\ngs-pipeline-launcher\\ngs_pipeline_launcher\\pipelineLauncher.ps1 %1%"
