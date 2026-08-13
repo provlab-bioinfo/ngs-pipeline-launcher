@@ -3,6 +3,7 @@ Windows Registry Editor Version 5.00
 [HKEY_CURRENT_USER\Software\Classes\Directory\shell\ProvLab]
 "MUIVerb"="ProvLab Tools"
 "subcommands"=""
+"Icon"="\\\\healthy.bewell.ca\\Apps\\APL_Genomics\\apps\\production\\PathCopyCopy\\beaker.ico"
 
 [HKEY_CURRENT_USER\Software\Classes\Directory\shell\ProvLab\shell]
 
