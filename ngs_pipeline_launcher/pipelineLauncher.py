@@ -346,10 +346,14 @@ def runLauncher(sampleSheetPath: str, email: str = None, if_exists = "error"):
             else: 
                 raise Exception(f"Error: Unsure how to start generic pipeline '{pipelines[group]}'. This currently only supports '.py' and '.sh' scripts.")
 
+            # Check for protected flags
+            if (any(flag in args for flag in ["--runPath", "--posCtrl", "--negCtrl"])):
+                raise Exception(f"Error: Protected argument present in '{pipelines[group]}'. Pipelines cannot contain any of --runPath, --posCtrl, or --negCtrl.")
+
             # Create commands
-            command = f"{type} {pipelines[group]} -r {directories[group]}"
-            if len(posCtrls): command = f"{command} -p '{posCtrls}'"
-            if len(negCtrls): command = f"{command} -c {negCtrls}"
+            command = f"{type} {pipelines[group]} --runPath {directories[group]}"
+            if len(posCtrls): command = f"{command} --posCtrl '{posCtrls}'"
+            if len(negCtrls): command = f"{command} --negCtrl {negCtrls}"
             commands.append(command)
 
         else:
