@@ -3,9 +3,10 @@
 print_usage() {
   printf "Usage: bash-example-input.sh --runpath /path/to/run --posctrl "barcode,ID barcode,ID" --negctrl "barcode,barcode"\n \
             options: \
-               --runPath  The path to the run. Required.
-               --posCtrl  The positive controls for the run in the format of 'barcode,refID barcode,refID. Optional.'
-               --negCtrl  The negative controls for the run in the format of 'barcode,barcode,barcode. Optional.'
+               --help      Show this help message and exit.
+               --runPath   Full path of the directory of the run folder. Required.
+               --posCtrl   The positive controls for the run in the format of 'barcode,refID barcode,refID. Optional.'
+               --negCtrl   The negative controls for the run in the format of 'barcode,barcode,barcode. Optional.'
   "
 }
 

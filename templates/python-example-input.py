@@ -1,4 +1,4 @@
-import argparse, warnings
+import argparse, warnings, os
 
 def posCtrlType(s):
     try:
@@ -17,8 +17,11 @@ parser.add_argument("--negCtrl", type=str, help="The negative controls for the r
 args, unknown = parser.parse_known_args()
 
 if unknown:
-    bad_args = ', '.join(unknown)    
+    bad_args = ', '.join(unknown)
     warnings.warn(f"Ignoring unrecognized arguments: {bad_args}", UserWarning)
+
+if not os.path.isdir(args.runPath):
+    raise Exception(f"Error: Directory does not exist at '{args.runPath}'.")
 
 print(f"Run Path     | {args.runPath}")
 print(f"Pos Controls | {args.posCtrl}")
