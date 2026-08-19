@@ -148,7 +148,7 @@ def runLauncher(sampleSheetPath: str, email: str = None, if_exists = "error"):
 
     # Read data from the sample sheet
     printLog(f"Checking for pipeline worksheet...")
-    with tempfile.NamedTemporaryFile() as sampleSheet:
+    with tempfile.NamedTemporaryFile() as tmpFile:
 
         # Check for either specific file or directory to search
         if os.path.isfile(sampleSheetPath): # If file
@@ -170,22 +170,25 @@ def runLauncher(sampleSheetPath: str, email: str = None, if_exists = "error"):
         # Convert to CSV
         if pathlib.Path(file).suffix.lower() == ".xlsx":
             df = pd.read_excel(file)
-            sampleSheetPath = sampleSheet.name # Export df to the tempfile
-            df.to_csv(sampleSheetPath, index=False)
+            sampleSheet = tmpFile.name # Export df to the tempfile
+            df.to_csv(sampleSheet, index=False)
         elif pathlib.Path(file).suffix.lower() == ".csv": 
-            sampleSheetPath = file
+            sampleSheet = file
         else:
             raise Exception(f"Pipeline worksheet must have the file type of '.xlsx' or '.csv'. Please check '{file}'.")
 
         # Get the variables for the run
-        header = getSampleSheetDataVars(sampleSheetPath, "Header") 
+        header = getSampleSheetDataVars(sampleSheet, "Header") 
         runName = header["Run_Name"].strip()
         runDir = header["Run_Dir"].strip()
+
+        if not (Path(sampleSheetPath).is_relative_to(Path(runDir))):
+            shutil.copy(sampleSheetPath, runDir) # Copies PipelineWorksheet to the run directory if it's not already inside it
             
-        pipelines = getSampleSheetDataVars(sampleSheetPath, "Pipelines")
-        directories = getSampleSheetDataVars(sampleSheetPath, "Directories")   
+        pipelines = getSampleSheetDataVars(sampleSheet, "Pipelines")
+        directories = getSampleSheetDataVars(sampleSheet, "Directories")   
         directories = {group: os.path.join(dir,runName) for group, dir in directories.items()} # Adds path name to end of directory path
-        allSamples = getSampleSheetDataFrame(sampleSheetPath, "Samples")
+        allSamples = getSampleSheetDataFrame(sampleSheet, "Samples")
 
     # Check if run is finished sequencing
     if not os.path.isdir(runDir): # Check if run exists
