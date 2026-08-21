@@ -13,9 +13,10 @@ def isRunCompleted(runPath:str):
         return False
 
     # Exit if something is actively acessing any files
-    # checkIfCopying = subprocess.run(['lsof', '+D', path], 
+    # checkIfCopying = subprocess.run(['lsof', '+D', runPath], 
     #                         stdout=subprocess.PIPE, 
-    #                         stderr=subprocess.PIPE)    
+    #                         stderr=subprocess.PIPE)
+    
     # if (checkIfCopying.returncode != 1):
     #     return None
 
@@ -23,12 +24,12 @@ def isRunCompleted(runPath:str):
     completionFiles = ["final_summary_*.txt","CompletedJobInfo.xml","RunCompletionStatus.xml"]
 
     # Using rglob
-    # found = [runPath.rglob(f) for f in completionFiles]
-    # found = [str(s) for s in list(itertools.chain.from_iterable(found))]
+    found = [Path(runPath).rglob(f) for f in completionFiles]
+    found = [str(s) for s in list(itertools.chain.from_iterable(found))]
 
     # Original
-    found = [glob.glob(os.path.join(runPath,"**",f), recursive = True) for f in completionFiles]
-    found = list(itertools.chain.from_iterable(found))
+    # found = [glob.glob(os.path.join(runPath,"**",f), recursive = True) for f in completionFiles]
+    # found = list(itertools.chain.from_iterable(found))
 
     if (len(found)):
         return found
