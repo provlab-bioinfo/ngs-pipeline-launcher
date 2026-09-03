@@ -355,7 +355,7 @@ def runLauncher(sampleSheetPath: str, email: str = None, if_exists = "error"):
 
             # Create commands
             command = f"{type} {pipelines[group]} --runPath {directories[group]}"
-            if len(posCtrls): command = f"{command} --posCtrl '{posCtrls}'"
+            if len(posCtrls): command = f"{command} --posCtrl {posCtrls}"
             if len(negCtrls): command = f"{command} --negCtrl {negCtrls}"
             commands.append(command)
 
