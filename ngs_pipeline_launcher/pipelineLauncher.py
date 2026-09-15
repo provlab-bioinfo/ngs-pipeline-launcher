@@ -3,7 +3,7 @@ from configparser import ConfigParser
 from itertools import chain
 from pathlib import Path
 import openpyxl as xl
-from runStatus import *
+from runStatus import isRunCompleted
 from datetime import datetime
 os.chdir(os.path.dirname(__file__))
 
