@@ -5,7 +5,7 @@ from pathlib import Path
 import openpyxl as xl
 from ngs_pipeline_launcher.runStatus import isRunCompleted
 from datetime import datetime
-os.chdir(os.path.dirname(__file__))
+#os.chdir(os.path.dirname(__file__))
 
 defaultSampleSheet = "./"
 SLURM = "/nfs/APL_Genomics/apps/production/ngs-pipeline-launcher/templates/SLURM_template.batch"
@@ -379,13 +379,14 @@ def runLauncher(sampleSheetPath: str, email: str = None, if_exists = "error"):
 def lower_and_strip(value):
     return str(value).strip().lower()
 
-parser = argparse.ArgumentParser(description='APL NGS Pipeline Launcher')
-parser.add_argument("-r", "--run", help="Path to the run directory or a pipeline worksheet. Must contain a file '*PipelineWorksheet*'.", default = defaultSampleSheet)
-parser.add_argument("-e", "--email", help="Notify status alerts by e-mail.", default = None)
-parser.add_argument("-x", "--if_exists", help="What to do if directory already exists? Options: 'error' out , 'ignore' the group, or 'delete' the existing directory. Default: 'error'.", default = 'error', type = lower_and_strip)
-args = parser.parse_args()
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='APL NGS Pipeline Launcher')
+    parser.add_argument("-r", "--run", help="Path to the run directory or a pipeline worksheet. Must contain a file '*PipelineWorksheet*'.", default = defaultSampleSheet)
+    parser.add_argument("-e", "--email", help="Notify status alerts by e-mail.", default = None)
+    parser.add_argument("-x", "--if_exists", help="What to do if directory already exists? Options: 'error' out , 'ignore' the group, or 'delete' the existing directory. Default: 'error'.", default = 'error', type = lower_and_strip)
+    args = parser.parse_args()
 
-if (args.if_exists not in ["error",'ignore','delete']):
-    raise Exception(f"Argument --if_exists must be either 'error', 'ignore', or 'delete'.")
+    if (args.if_exists not in ["error",'ignore','delete']):
+        raise Exception(f"Argument --if_exists must be either 'error', 'ignore', or 'delete'.")
 
-runLauncher(args.run, None if args.email == "None" else args.email, args.if_exists)
+    runLauncher(args.run, None if args.email == "None" else args.email, args.if_exists)
