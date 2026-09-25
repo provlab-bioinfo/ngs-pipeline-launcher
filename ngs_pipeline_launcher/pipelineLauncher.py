@@ -195,7 +195,7 @@ def runLauncher(sampleSheetPath: str, email: str = None, if_exists = "error"):
         raise Exception(f"Run directory does not exist at '{header['Run_Dir']}'.")
 
     printLog(f"Checking for sequencing completion file...")
-    sleep_time = 60
+    sleep_time = 15
     while not (completionFiles := isRunCompleted(runDir)):#isRunCompleted(basePath, header["Seq_Type"]):
         printLog(f"   Waiting...")
         time.sleep(sleep_time)
@@ -306,6 +306,7 @@ def runLauncher(sampleSheetPath: str, email: str = None, if_exists = "error"):
                 
     # Setup pipeline
     printLog(f"Configuring pipelines...")
+    batch_jobs = []
     for group in groups:
 
         # Check for pipeline
@@ -371,9 +372,15 @@ def runLauncher(sampleSheetPath: str, email: str = None, if_exists = "error"):
                                 command = "\n".join(commands), 
                                 email = email)
         out = subprocess.run(["sbatch",SLURMfile,"-v"], capture_output = True, text = True) # Launch the SLURM file
-        printLog(f"      {out.stdout}")
-
-    printLog(f"All files transferred and pipeline initialized\n")
+        batch_num = re.search(r".*?(\d+).*?", out.stdout)
+        if batch_num:
+            printLog(f"      {out.stdout.rstrip()}")
+            batch_jobs.append(batch_num.group(1))
+        else:
+            printLog(f"      Did not detect batch job number. Was this run on a node with SLURM? Run the batch file manually.")
+    
+    printLog(f"All files transferred and pipelines generated\n")
+    return batch_jobs
 
 # Import the arguments
 def lower_and_strip(value):
