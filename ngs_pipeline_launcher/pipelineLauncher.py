@@ -69,7 +69,9 @@ def subsetWorksheet(group:str, path:str, outPath:str, maxCols:int = 26):
         cell = row[2] # col idx 3 is Sample_Group, TODO: Search for this instead of hardcoding
         if cell.value == "Sample_Group":
             break
-        if cell.value != group:
+        elif group in (cell.value or "").split(";"):
+            cell.value = group
+        else:
             ws.delete_rows(idx = cell.row)
             # Clear styles from the last row in the sheet, as the data will have shifted upwards
             for row in ws.iter_cols(min_row = ws.max_row+1, min_col = 1, max_col = last_col+1, max_row = ws.max_row+1):
