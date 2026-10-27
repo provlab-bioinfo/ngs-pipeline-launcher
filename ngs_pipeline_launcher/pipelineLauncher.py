@@ -210,6 +210,10 @@ def runLauncher(sampleSheetPath: str, email: str = None, if_exists = "error"):
 
     printLog(f"   Found '{completionFiles}'")
 
+    # Separate samples used in multiple pipelines
+    allSamples["Sample_Group"] = allSamples["Sample_Group"].str.split(';')
+    allSamples = allSamples.explode("Sample_Group")
+
     # Check for appropriate inputs
     groups = sorted(set(allSamples["Sample_Group"].dropna().values))
     for group in groups[:]:
